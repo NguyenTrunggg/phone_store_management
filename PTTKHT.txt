@@ -1,0 +1,1048 @@
+﻿Phân tích và Thiết kế Hệ thống Bán Điện thoại iPhone tại Cửa hàng sử dụng NextJS và Firebase
+Mở đầu
+Báo cáo này trình bày chi tiết về phân tích và thiết kế hệ thống quản lý bán hàng điện thoại iPhone tại cửa hàng. Hệ thống được xây dựng với mục tiêu tối ưu hóa các quy trình nghiệp vụ cốt lõi, bao gồm quản lý định danh sản phẩm, quản lý nhập kho, quản lý bán hàng và thống kê. Một yêu cầu quan trọng là giao diện người dùng (UI) phải được thiết kế phù hợp với trải nghiệm trên các thiết bị iPhone, đồng thời tận dụng nền tảng công nghệ NextJS cho frontend và Firebase cho backend. Việc đánh giá Firebase được bỏ qua do đã có quyết định sử dụng nền tảng này. Báo cáo sẽ đi sâu vào phân tích các trường hợp sử dụng (use cases) và luồng chức năng chi tiết, cung cấp một cái nhìn toàn diện về kiến trúc và hoạt động của hệ thống.
+I. Tổng quan Hệ thống
+A. Mục tiêu của Hệ thống
+Hệ thống quản lý bán hàng điện thoại iPhone được thiết kế nhằm đạt được các mục tiêu chính sau:
+1. Hiện đại hóa quy trình quản lý: Thay thế các phương pháp quản lý thủ công hoặc các hệ thống cũ không còn phù hợp bằng một giải pháp công nghệ tiên tiến, tự động hóa cao.
+2. Tối ưu hóa hiệu quả hoạt động: Giảm thiểu thời gian xử lý đơn hàng, quản lý kho, và các tác vụ hành chính khác, từ đó nâng cao năng suất làm việc của nhân viên.
+3. Đảm bảo tính chính xác dữ liệu: Quản lý chặt chẽ thông tin sản phẩm, đặc biệt là các mã định danh duy nhất như IMEI/Serial, thông tin tồn kho, doanh thu, và dữ liệu khách hàng, hạn chế tối đa sai sót.
+4. Nâng cao trải nghiệm người dùng: Cung cấp giao diện trực quan, dễ sử dụng cho nhân viên, đặc biệt khi thao tác trên các thiết bị iPhone/iPad, giúp họ làm quen nhanh và thao tác hiệu quả.
+5. Hỗ trợ ra quyết định kinh doanh: Cung cấp các báo cáo thống kê chi tiết, kịp thời về tình hình kinh doanh, giúp quản lý cửa hàng đưa ra các quyết định chiến lược chính xác.
+B. Phạm vi của Hệ thống
+Hệ thống sẽ bao gồm các chức năng chính sau:
+* Quản lý Định danh Sản phẩm:
+   * Quản lý danh mục sản phẩm iPhone (ví dụ: iPhone 15, iPhone 15 Pro Max).
+   * Quản lý các biến thể của sản phẩm (màu sắc, dung lượng lưu trữ).
+   * Quản lý chi tiết từng đơn vị sản phẩm thông qua IMEI và/hoặc số Sê-ri.
+* Quản lý Nhập kho:
+   * Ghi nhận thông tin lô hàng nhập về, bao gồm nhà cung cấp, ngày nhập, giá nhập.
+   * Nhập thông tin IMEI/Sê-ri cho từng sản phẩm trong lô hàng.
+   * Cập nhật số lượng tồn kho tự động.
+* Quản lý Bán hàng (Point of Sale - POS):
+   * Tạo đơn hàng mới, cho phép chọn sản phẩm, biến thể và IMEI/Sê-ri cụ thể.
+   * Quản lý thông tin khách hàng (cơ bản).
+   * Áp dụng các chương trình khuyến mãi (nếu có).
+   * Ghi nhận các hình thức thanh toán.
+   * In hóa đơn (hoặc gửi hóa đơn điện tử).
+   * Xử lý nghiệp vụ trả hàng.
+* Thống kê và Báo cáo:
+   * Báo cáo doanh thu (theo ngày, tuần, tháng, theo sản phẩm, theo nhân viên).
+   * Báo cáo tồn kho (số lượng tồn theo sản phẩm, biến thể, cảnh báo tồn kho thấp).
+   * Báo cáo lợi nhuận (cơ bản).
+* Quản lý Bảo hành:
+   * Tra cứu thông tin bảo hành sản phẩm Apple dựa trên IMEI/Sê-ri (có thể thông qua tích hợp hoặc liên kết đến trang của Apple).
+* Quản lý Người dùng:
+   * Quản lý tài khoản nhân viên, quản lý.
+   * Phân quyền truy cập chức năng.
+Các chức năng nằm ngoài phạm vi của hệ thống trong phiên bản này:
+* Quản lý bán hàng đa kênh online (website TMĐT, mạng xã hội) một cách toàn diện (hệ thống tập trung vào POS tại cửa hàng).
+* Các module marketing phức tạp (email marketing, SMS marketing).
+* Quản lý tài chính kế toán chi tiết.
+* Quản lý chuỗi cung ứng phức tạp.
+C. Công nghệ sử dụng
+* Frontend: NextJS – một framework React phổ biến cho phép xây dựng giao diện người dùng nhanh, hiệu quả, và có khả năng tối ưu hóa cho SEO (mặc dù SEO không phải ưu tiên hàng đầu cho ứng dụng POS nội bộ, NextJS vẫn mang lại trải nghiệm phát triển tốt và hiệu năng cao).
+* Backend & Cơ sở dữ liệu: Firebase – một nền tảng phát triển ứng dụng của Google, cung cấp các dịch vụ như:
+   * Firebase Authentication: Cho việc xác thực người dùng.
+   * Firebase Firestore: Cơ sở dữ liệu NoSQL, linh hoạt, có khả năng mở rộng và đồng bộ dữ liệu thời gian thực, phù hợp để lưu trữ thông tin sản phẩm, đơn hàng, tồn kho.
+   * Firebase Hosting (tùy chọn): Có thể sử dụng để triển khai ứng dụng NextJS. Vercel cũng là một lựa chọn phổ biến và tối ưu cho NextJS.1
+Sự kết hợp giữa NextJS và Firebase cho phép xây dựng các ứng dụng full-stack mạnh mẽ, có khả năng mở rộng và phát triển nhanh chóng.1
+II. Phân tích Chức năng Hệ thống
+A. Quản lý Định danh Sản phẩm (Product Identification Management)
+Việc quản lý định danh sản phẩm một cách chính xác là nền tảng cốt lõi cho một hệ thống bán lẻ điện thoại, đặc biệt đối với các sản phẩm giá trị cao và có nhiều biến thể như iPhone.
+1. Quản lý Thông tin Chung của Model Sản phẩm:
+   * Hệ thống cho phép tạo và lưu trữ thông tin cơ bản cho từng dòng sản phẩm iPhone, ví dụ: "iPhone 15 Pro Max", "iPhone 15".
+   * Các thông tin bao gồm: Tên model, mô tả chung, thương hiệu ("Apple"), danh mục ("Điện thoại di động").
+   * Mỗi model sản phẩm sẽ có một mã định danh duy nhất trong hệ thống.
+2. Quản lý Biến thể Sản phẩm (Product Variants):
+   * Đối với mỗi model iPhone, hệ thống phải cho phép định nghĩa nhiều biến thể dựa trên các thuộc tính như màu sắc (ví dụ: Titan Tự Nhiên, Titan Xanh, Titan Trắng) và dung lượng lưu trữ (ví dụ: 256GB, 512GB, 1TB).3
+   * Mỗi biến thể sẽ có thông tin riêng như: Mã SKU (Stock Keeping Unit) duy nhất, giá bán lẻ, giá nhập, hình ảnh đại diện cụ thể cho biến thể đó (nếu có).
+   * Hệ thống cần hỗ trợ việc thêm, sửa, xóa các thuộc tính và giá trị thuộc tính một cách linh hoạt, tương tự như cách các nền tảng thương mại điện tử như Haravan quản lý.5 Google cũng khuyến nghị sử dụng cấu trúc ProductGroup và Product để định nghĩa các biến thể, trong đó ProductGroup chứa thông tin chung và mỗi Product là một biến thể cụ thể với các thuộc tính riêng.6
+3. Quản lý IMEI/Số Sê-ri (IMEI/Serial Number Management):
+   * Đây là cấp độ quản lý chi tiết nhất, mỗi chiếc điện thoại iPhone vật lý sẽ được định danh bằng một mã IMEI (International Mobile Equipment Identity) gồm 15 chữ số duy nhất.7 Một số sản phẩm có thể có cả số Sê-ri.
+   * Hệ thống phải cho phép nhập, lưu trữ và truy xuất IMEI/Sê-ri cho từng đơn vị sản phẩm.
+   * Mỗi IMEI/Sê-ri sẽ được liên kết với một biến thể sản phẩm cụ thể (ví dụ: IMEI XXXXX thuộc về iPhone 15 Pro Max, Titan Tự Nhiên, 256GB).
+   * Trạng thái của từng IMEI/Sê-ri cần được quản lý chặt chẽ: "Trong kho" (In Stock), "Đã bán" (Sold), "Đã đặt trước" (Reserved), "Trả lại" (Returned), "Lỗi" (Defective).
+   * Các phần mềm quản lý bán hàng chuyên nghiệp như Sapo Retail đều có tính năng quản lý sản phẩm theo Serial/IMEI, cho phép theo dõi chi tiết trạng thái, ngày tạo, giá bán, giá nhập của từng mã.9
+   * Việc quản lý chính xác IMEI không chỉ quan trọng cho việc kiểm soát tồn kho mà còn liên quan trực tiếp đến quản lý bảo hành và các dịch vụ hậu mãi.8
+Việc thiết kế cơ sở dữ liệu cần phản ánh cấu trúc phân cấp này: Model sản phẩm -> Các biến thể của model đó -> Các IMEI/Sê-ri cụ thể thuộc từng biến thể. Điều này đảm bảo khả năng truy vấn linh hoạt và quản lý chính xác đến từng đơn vị hàng hóa.
+B. Quản lý Nhập kho (Inventory Intake Management)
+Quy trình nhập kho hiệu quả đảm bảo rằng số liệu tồn kho trong hệ thống luôn khớp với thực tế, đồng thời cung cấp thông tin đầu vào quan trọng cho việc tính toán giá vốn và lợi nhuận.
+1. Tạo Phiếu Nhập kho:
+   * Khi có lô hàng iPhone mới về, nhân viên kho (hoặc quản lý) sẽ tạo một phiếu nhập kho mới trong hệ thống.
+   * Thông tin trên phiếu nhập kho bao gồm: Mã phiếu nhập (có thể tự động tạo), ngày nhập, thông tin nhà cung cấp (nếu cần quản lý), người chịu trách nhiệm nhập, và ghi chú (nếu có).
+2. Chi tiết Hàng hóa Nhập kho:
+   * Với mỗi loại sản phẩm (model và biến thể cụ thể) trong lô hàng, nhân viên sẽ nhập số lượng và đơn giá nhập.
+   * Quan trọng nhất: Hệ thống phải cho phép (và yêu cầu) nhập danh sách các mã IMEI/Sê-ri tương ứng với số lượng sản phẩm của từng biến thể được nhập. Ví dụ, nếu nhập 10 chiếc iPhone 15 Pro Max 256GB Titan Tự Nhiên, cần nhập đủ 10 mã IMEI cho 10 chiếc này.
+   * Giao diện nhập IMEI nên hỗ trợ cả việc nhập thủ công và quét mã vạch (nếu cửa hàng có thiết bị quét) để tăng tốc độ và giảm sai sót. Nhiều phần mềm POS hỗ trợ quét mã vạch sản phẩm.10
+3. Cập nhật Tồn kho:
+   * Sau khi phiếu nhập kho được xác nhận, hệ thống sẽ tự động:
+      * Tăng số lượng tồn kho cho các biến thể sản phẩm tương ứng.
+      * Lưu trữ thông tin chi tiết của từng IMEI/Sê-ri vừa nhập vào cơ sở dữ liệu inventory_items (hoặc tương đương) với trạng thái "Trong kho" (In Stock), liên kết với productId, variantId, giá nhập, ngày nhập.
+   * Hệ thống cần cung cấp khả năng theo dõi lịch sử nhập kho, cho phép xem lại thông tin các phiếu nhập đã tạo.
+4. Quản lý Nhà cung cấp (Tùy chọn cơ bản):
+   * Lưu trữ thông tin cơ bản về các nhà cung cấp iPhone để tiện theo dõi nguồn gốc hàng hóa.
+Việc quản lý nhập kho chi tiết đến từng IMEI là điều kiện tiên quyết để quản lý bán hàng chính xác (chọn đúng IMEI khi bán) và theo dõi vòng đời của từng sản phẩm. Các hệ thống như Nhanh.vn cũng nhấn mạnh tầm quan trọng của việc quản lý xuất, nhập, chuyển, kiểm kho.10
+C. Quản lý Bán hàng (Sales Management)
+Đây là chức năng trung tâm của hệ thống POS, nơi diễn ra các giao dịch trực tiếp với khách hàng. Giao diện bán hàng cần được tối ưu cho tốc độ và sự chính xác.
+1. Giao diện Bán hàng (POS Interface):
+   * Thiết kế trực quan, dễ sử dụng trên thiết bị iPhone/iPad, tuân thủ Apple Human Interface Guidelines.
+   * Hiển thị danh sách sản phẩm hoặc cho phép tìm kiếm nhanh sản phẩm theo tên, mã SKU.
+   * Khi chọn một model sản phẩm, hệ thống hiển thị các biến thể có sẵn (màu sắc, dung lượng) để nhân viên lựa chọn.
+2. Chọn Sản phẩm và IMEI/Sê-ri:
+   * Sau khi khách hàng chọn được biến thể mong muốn (ví dụ: iPhone 15 Pro Max, 256GB, Titan Tự Nhiên), hệ thống sẽ hiển thị danh sách các IMEI/Sê-ri của biến thể đó đang có trạng thái "Trong kho".
+   * Nhân viên bán hàng sẽ chọn (hoặc quét mã vạch) IMEI/Sê-ri cụ thể của chiếc máy sẽ bán cho khách. Đây là bước quan trọng để đảm bảo đúng sản phẩm được giao và tồn kho được cập nhật chính xác.
+3. Quản lý Giỏ hàng/Đơn hàng:
+   * Thêm sản phẩm đã chọn (cùng IMEI/Sê-ri) vào giỏ hàng.
+   * Cho phép thêm nhiều sản phẩm khác (ví dụ: phụ kiện) vào cùng một đơn hàng.
+   * Hiển thị tổng giá trị đơn hàng, áp dụng thuế (nếu có).
+4. Thông tin Khách hàng (Cơ bản):
+   * Cho phép nhập thông tin khách hàng mới (tên, số điện thoại) hoặc tìm kiếm khách hàng đã có trong hệ thống để gắn vào đơn hàng (hỗ trợ cho việc chăm sóc sau bán hàng và các chương trình khách hàng thân thiết sau này).
+5. Áp dụng Khuyến mãi/Giảm giá:
+   * Hệ thống cho phép nhân viên áp dụng các chương trình khuyến mãi hoặc giảm giá thủ công (nếu được quản lý cho phép) vào đơn hàng.
+6. Thanh toán:
+   * Hỗ trợ nhiều hình thức thanh toán: Tiền mặt, thẻ ngân hàng (ghi nhận thông tin giao dịch thành công từ máy POS ngoài), chuyển khoản, Apple Pay (nếu có tích hợp).11
+   * Tính toán số tiền khách cần trả, tiền thừa (nếu trả bằng tiền mặt).
+   * Nhiều phần mềm POS như Sapo, TPOS, POS365 đều hỗ trợ các nghiệp vụ thanh toán này.12
+7. Hoàn tất Đơn hàng và In hóa đơn:
+   * Sau khi thanh toán thành công, hệ thống xác nhận hoàn tất đơn hàng.
+   * Tự động cập nhật trạng thái của IMEI/Sê-ri đã bán thành "Đã bán" và giảm số lượng tồn kho của biến thể tương ứng.
+   * Cho phép in hóa đơn bán hàng (thông tin cửa hàng, chi tiết đơn hàng, sản phẩm, IMEI, tổng tiền, thông tin khách hàng). Các phần mềm như Nhanh.vn có chức năng in bill, quét mã vạch.10
+8. Xử lý Trả hàng (Returns Management):
+   * Cho phép xử lý trường hợp khách hàng trả lại sản phẩm.
+   * Yêu cầu nhập IMEI/Sê-ri của sản phẩm trả lại.
+   * Cập nhật lại trạng thái của IMEI/Sê-ri đó (ví dụ: "Đã trả lại") và cập nhật tồn kho.
+   * Xử lý hoàn tiền cho khách.
+Giao diện bán hàng cần được thiết kế để nhân viên có thể hoàn thành một giao dịch một cách nhanh chóng và chính xác, giảm thiểu các bước không cần thiết và cung cấp thông tin rõ ràng.
+D. Thống kê và Báo cáo (Statistics and Reporting)
+Chức năng thống kê và báo cáo cung cấp cái nhìn sâu sắc về hiệu quả hoạt động kinh doanh, giúp chủ cửa hàng đưa ra các quyết định dựa trên dữ liệu.
+1. Báo cáo Doanh thu:
+   * Tổng doanh thu: Theo ngày, tuần, tháng, quý, năm.
+   * Doanh thu theo sản phẩm/model: Giúp xác định model iPhone nào bán chạy nhất.
+   * Doanh thu theo biến thể sản phẩm: Chi tiết hơn, ví dụ, iPhone 15 Pro Max 256GB Titan Tự Nhiên có doanh thu bao nhiêu so với màu khác hoặc dung lượng khác.
+   * Doanh thu theo nhân viên bán hàng: Đánh giá hiệu suất của từng nhân viên.14
+   * Giá trị đơn hàng trung bình (Average Order Value - AOV): Tổng doanh thu chia cho tổng số đơn hàng. Giúp đánh giá mức chi tiêu trung bình của khách hàng.15
+   * Các báo cáo này có thể được trình bày dưới dạng bảng biểu hoặc biểu đồ trực quan.12 Nhanh.vn cung cấp hơn 80 mẫu báo cáo chi tiết.16
+2. Báo cáo Tồn kho:
+   * Số lượng tồn kho hiện tại: Chi tiết theo từng model, từng biến thể, và danh sách IMEI/Sê-ri cụ thể còn trong kho.
+   * Giá trị tồn kho: Tính theo giá nhập hoặc giá bán.
+   * Vòng quay hàng tồn kho (Inventory Turnover): Tính bằng (Tổng giá vốn hàng bán / Tồn kho trung bình). Chỉ số này đo lường hiệu quả quản lý vốn và tốc độ bán hàng.17
+   * Cảnh báo tồn kho thấp: Hệ thống thông báo khi số lượng tồn của một biến thể sản phẩm nào đó xuống dưới mức định sẵn.
+   * Báo cáo hàng tồn kho theo tuổi (Inventory Aging Report): Phân loại hàng tồn theo thời gian lưu kho, giúp xác định hàng bán chậm.
+3. Báo cáo Lợi nhuận (Cơ bản):
+   * Lợi nhuận gộp: Tính bằng (Doanh thu - Giá vốn hàng bán).
+   * Biên lợi nhuận theo mặt hàng: Giúp xác định mặt hàng nào mang lại lợi nhuận cao nhất.18
+4. Báo cáo Khách hàng:
+   * Số lượng khách hàng mới.
+   * Tần suất mua hàng của khách (nếu quản lý thông tin khách hàng chi tiết).
+   * Doanh thu theo nhóm khách hàng.18
+5. Các Chỉ số KPI Quan trọng (Key Performance Indicators):
+Hệ thống cần theo dõi và hiển thị các KPI quan trọng. Việc xác định đúng các KPI giúp doanh nghiệp đánh giá chính xác hiệu quả hoạt động. Một số KPI quan trọng cho cửa hàng bán lẻ điện thoại bao gồm:
+   * Lưu lượng khách hàng (Customer Traffic): Số lượng khách vào cửa hàng (nếu có hệ thống đếm).15
+   * Tỷ lệ chuyển đổi đơn hàng (Conversion Rate): (Số khách hàng mua hàng / Tổng số khách hàng tới cửa hàng) * 100%.17
+   * Doanh số trên một lần giao dịch (Sales per Transaction) / Giá trị đơn hàng trung bình (AOV).15
+   * Vòng quay hàng tồn kho (Inventory Turnover).17
+   * Tỷ lệ hàng đổi trả (Return Rate).15
+   * Tăng trưởng doanh số (Sales Growth).14
+   * Chi phí chuyển đổi khách hàng (Customer Acquisition Cost - CAC).14
+   * Doanh thu trung bình trên mỗi khách hàng (Average Revenue Per User - ARPU).14
+Dưới đây là bảng tóm tắt một số KPI quan trọng:Bảng 1: Các Chỉ số KPI Quan trọng và Công thức Tính toán
+Tên KPI
+	Công thức Tính toán
+	Ý nghĩa/Mục tiêu
+	Nguồn dữ liệu
+	Tổng Doanh thu
+	Tổng tiền từ các đơn hàng đã hoàn thành
+	Đo lường tổng thể hiệu quả bán hàng
+	sales_orders
+	Giá trị Đơn hàng Trung bình (AOV)
+	Tổng Doanh thu / Tổng Số đơn hàng
+	Hiểu giá trị mỗi lần khách mua, tiềm năng bán thêm/bán chéo
+	sales_orders
+	Vòng quay Hàng tồn kho
+	Giá vốn hàng bán (COGS) / Tồn kho trung bình
+	Hiệu quả quản lý vốn, tốc độ bán hàng, xác định hàng tồn đọng
+	sales_orders, inventory_items
+	Tỷ lệ Chuyển đổi Khách hàng
+	(Số đơn hàng / Tổng lượt khách vào cửa hàng (nếu có)) * 100%
+	Hiệu quả của cửa hàng trong việc chuyển đổi khách tham quan thành người mua
+	sales_orders, Dữ liệu lưu lượng khách (nếu có)
+	Doanh thu / Nhân viên
+	Tổng doanh thu / Số lượng nhân viên bán hàng (trong kỳ)
+	Năng suất và hiệu quả làm việc của nhân viên bán hàng
+	sales_orders, Dữ liệu nhân sự
+	Tỷ lệ hàng đổi trả
+	(Số lượng sản phẩm bị trả lại / Tổng số lượng sản phẩm đã bán) * 100%
+	Chất lượng sản phẩm, sự hài lòng của khách hàng, hiệu quả tư vấn
+	sales_orders (trạng thái trả hàng), inventory_items
+	
+
+
+
+
+
+Việc cung cấp các báo cáo này một cách trực quan (qua biểu đồ, dashboard) và cho phép tùy chỉnh (lọc theo thời gian, chi nhánh nếu có) sẽ giúp người quản lý dễ dàng nắm bắt tình hình và đưa ra quyết định kịp thời.
+
+E. Quản lý Bảo hành (Warranty Management)
+Đối với sản phẩm Apple, việc kiểm tra và quản lý thông tin bảo hành là một phần quan trọng của dịch vụ khách hàng.
+   1. Tra cứu Thông tin Bảo hành qua IMEI/Sê-ri:
+   * Hệ thống cho phép nhân viên nhập IMEI hoặc Số Sê-ri của một chiếc iPhone để tra cứu thông tin bảo hành.
+   * Cách thức tra cứu phổ biến và chính xác nhất là thông qua website chính thức của Apple: checkcoverage.apple.com.8
+   * Hệ thống có thể:
+   * Cung cấp một liên kết trực tiếp đến trang checkcoverage.apple.com và tự động điền IMEI/Sê-ri (nếu trình duyệt cho phép).
+   * Hoặc, nếu Apple cung cấp API (điều này thường không công khai cho bên thứ ba), hệ thống có thể tích hợp để hiển thị thông tin trực tiếp trong giao diện. Phương án khả thi hơn là hướng dẫn nhân viên truy cập website của Apple.
+   * Thông tin trả về từ Apple thường bao gồm: Tên thiết bị, Ngày mua hợp lệ (Valid Purchase Date), Tình trạng bảo hành sửa chữa và dịch vụ (Repairs and Service Coverage), và ngày hết hạn bảo hành.8
+   2. Ghi nhận Lịch sử Bảo hành (Tùy chọn nâng cao):
+   * Nếu cửa hàng có chính sách bảo hành riêng hoặc thực hiện các dịch vụ sửa chữa được ủy quyền, hệ thống có thể cho phép ghi nhận lịch sử các lần tiếp nhận bảo hành, sửa chữa cho từng IMEI/Sê-ri.
+   * Thông tin ghi nhận: Ngày tiếp nhận, mô tả lỗi, tình trạng xử lý, ngày trả máy.
+   3. Thông tin Liên quan đến Bảo hành:
+   * Mã IMEI rất quan trọng vì nó cung cấp thông tin về phần cứng và tình trạng bảo hành. Nếu không có mã IMEI, điện thoại có thể mất hiệu lực bảo hành.8
+   * Nhân viên cần được hướng dẫn cách lấy IMEI trên thiết bị (qua Cài đặt > Cài đặt chung > Giới thiệu, hoặc bấm *#06#) để hỗ trợ khách hàng.7
+Việc tích hợp hoặc cung cấp công cụ tra cứu bảo hành nhanh chóng giúp nâng cao chất lượng dịch vụ và sự tin tưởng của khách hàng.
+III. Thiết kế Giao diện Người dùng (UI) và Trải nghiệm Người dùng (UX)
+Thiết kế UI/UX cho hệ thống POS bán điện thoại iPhone cần đặc biệt chú trọng đến sự trực quan, dễ sử dụng và phải hài hòa với hệ sinh thái Apple, vì người dùng chính (nhân viên cửa hàng) có khả năng cao sẽ thao tác trên các thiết bị như iPhone hoặc iPad.
+A. Triết lý Thiết kế
+Triết lý thiết kế của hệ thống sẽ học hỏi từ chính Apple, nơi Steve Jobs đã đặt nền móng cho việc tập trung vào trải nghiệm người dùng và sự đơn giản hóa.20
+   1. Tập trung vào Người dùng (User-Centric): Mọi quyết định thiết kế phải xoay quanh việc làm cho công việc của nhân viên bán hàng và quản lý trở nên dễ dàng và hiệu quả hơn. Giao diện phải trực quan đến mức người dùng mới có thể nhanh chóng làm quen và sử dụng thành thạo.
+   2. Đơn giản hóa (Simplicity): Loại bỏ mọi yếu tố không cần thiết, giảm thiểu sự phức tạp trong giao diện và luồng thao tác.20 Mỗi màn hình, mỗi nút bấm phải có mục đích rõ ràng. Sự đơn giản này không chỉ giúp tăng tốc độ thao tác mà còn giảm thiểu lỗi do người dùng.
+   3. Tính nhất quán (Consistency): Các yếu tố giao diện, thuật ngữ, và mẫu tương tác phải nhất quán trên toàn bộ ứng dụng. Điều này giúp người dùng dễ dàng học và dự đoán cách hệ thống hoạt động.
+   4. Hiệu quả (Efficiency): Thiết kế phải tối ưu cho các tác vụ thường xuyên, ví dụ như quá trình tạo đơn hàng, quét IMEI, thanh toán. Giảm số lần nhấp chuột/chạm, tự động hóa các bước có thể.
+   5. Phản hồi (Feedback): Hệ thống phải cung cấp phản hồi rõ ràng cho mọi hành động của người dùng (ví dụ: thông báo thành công, cảnh báo lỗi, trạng thái đang tải).
+Sự chú trọng vào thiết kế không chỉ là về thẩm mỹ mà còn là "cách nó hoạt động".20 Một hệ thống POS với thiết kế tốt sẽ giúp nhân viên cảm thấy thoải mái, tự tin khi sử dụng, từ đó nâng cao chất lượng phục vụ khách hàng.
+B. Nguyên tắc Thiết kế Giao diện cho iPhone
+Để đảm bảo giao diện "phù hợp với iPhone", việc tuân thủ các Hướng dẫn Giao diện Người dùng của Apple (Apple Human Interface Guidelines - HIG) là rất quan trọng.21
+   1. Tính rõ ràng (Clarity): Văn bản phải dễ đọc, các biểu tượng phải dễ hiểu, và bố cục phải có sự phân cấp trực quan. Sử dụng đủ khoảng trắng để các yếu tố không bị rối mắt.
+   2. Tính tương tác (Interactivity): Các yếu tố có thể tương tác (nút bấm, trường nhập liệu) phải rõ ràng và dễ nhận biết. Kích thước vùng chạm (hit targets) phải đủ lớn để dễ dàng thao tác bằng ngón tay (tối thiểu 44x44 điểm).22
+   3. Tính thẩm mỹ (Aesthetics): Giao diện cần sạch sẽ, hiện đại và chuyên nghiệp, phản ánh chất lượng của sản phẩm iPhone đang được bán.
+   4. Bố cục thích ứng (Adaptivity and Layout): Đảm bảo giao diện hiển thị tốt trên các kích thước màn hình iPhone khác nhau. Nội dung chính phải hiển thị rõ ràng mà không cần phóng to hay cuộn ngang.22
+   5. Điều khiển cảm ứng (Touch Controls): Sử dụng các thành phần UI được thiết kế cho cử chỉ chạm, giúp tương tác tự nhiên và dễ dàng [22.
+   6. Typography: Sử dụng font chữ hệ thống của Apple (San Francisco - SF Pro) để đảm bảo tính nhất quán và dễ đọc. Kích thước chữ tối thiểu là 11 điểm để dễ nhìn ở khoảng cách xem thông thường.22
+   7. Độ tương phản (Contrast): Đảm bảo độ tương phản đủ giữa màu chữ và màu nền để văn bản dễ đọc.22
+   8. Căn chỉnh (Alignment): Căn chỉnh văn bản, hình ảnh, nút bấm một cách hợp lý để thể hiện mối quan hệ giữa các thông tin.22
+Việc tuân thủ HIG không chỉ giúp ứng dụng trông "giống Apple" mà còn đảm bảo người dùng có trải nghiệm quen thuộc, giảm thời gian học cách sử dụng hệ thống.21 "Phù hợp với iPhone" còn bao hàm cả cảm giác tương tác mượt mà, phản hồi nhanh chóng từ hệ thống, điều này đòi hỏi tối ưu hóa cả frontend NextJS và tốc độ phản hồi từ Firebase.
+C. Xu hướng UI/UX Hiện đại Áp dụng
+Trong khi có nhiều xu hướng UI/UX mới nổi cho thương mại điện tử 23, việc áp dụng cho hệ thống POS tại cửa hàng cần có sự chọn lọc, ưu tiên tính thực dụng và hiệu quả.
+   1. Chế độ tối (Dark Mode): Đây là một xu hướng mạnh mẽ, được người dùng ưa chuộng và Apple hỗ trợ rất tốt trên iOS.23 Cung cấp tùy chọn Dark Mode cho phép người dùng lựa chọn giao diện phù hợp với điều kiện ánh sáng của cửa hàng, giảm mỏi mắt khi làm việc nhiều giờ và có thể giúp tiết kiệm pin trên các thiết bị màn hình OLED như iPhone.
+   2. Thiết kế tối giản hiện đại (Modern Minimalism): Tập trung vào việc loại bỏ các yếu tố không cần thiết, sử dụng không gian trắng một cách hiệu quả, và làm nổi bật nội dung quan trọng.23 Điều này hoàn toàn phù hợp với triết lý thiết kế của Apple.
+   3. Micro-interactions (Vi tương tác): Các hiệu ứng chuyển động nhỏ, tinh tế hoặc phản hồi trực quan khi người dùng tương tác (ví dụ: nút bấm đổi màu khi chạm, thông báo trượt vào nhẹ nhàng) có thể làm tăng sự hấp dẫn và cảm giác "sống động" cho giao diện, nhưng cần sử dụng một cách tiết chế để không gây xao nhãng.23
+   4. Cá nhân hóa trải nghiệm (Personalization - ở mức độ cơ bản): Cho phép người dùng tùy chỉnh một số yếu tố giao diện cơ bản (như chọn Light/Dark mode) hoặc sắp xếp các chức năng hay dùng ra ngoài dashboard (nếu có).
+   5. Ưu tiên tốc độ và sự rõ ràng: Mặc dù các xu hướng như thiết kế 3D hay Thực tế tăng cường (AR) rất thú vị cho việc khám phá sản phẩm online 23, chúng có thể không phù hợp hoặc thậm chí làm chậm tốc độ thao tác trên hệ thống POS, nơi mà hiệu quả giao dịch là ưu tiên hàng đầu.
+D. Đề xuất về Màu sắc, Typography và Bố cục
+Để tạo ra một giao diện hài hòa và chuyên nghiệp, phù hợp với thương hiệu Apple:
+   1. Bảng màu (Color Palette):
+   * Màu nền và thành phần chính: Ưu tiên các màu trung tính, sáng sủa như Xám nhạt (ví dụ: Athens Gray #F5F5F7 của Apple), Trắng (#FFFFFF), và Đen/Xám đậm (ví dụ: Shark #1D1D1F của Apple) để tạo không gian sạch sẽ, hiện đại và làm nổi bật nội dung.25
+   * Màu nhấn (Accent Color): Sử dụng một màu xanh dương đặc trưng của iOS (ví dụ: #007AFF) hoặc một màu xanh dương/xanh lá cây dịu mắt tương tự các màu sản phẩm iPhone như Sierra Blue, Alpine Green 3 cho các nút kêu gọi hành động (Call To Action - CTA), liên kết quan trọng, hoặc các yếu tố cần thu hút sự chú ý. Tránh sử dụng quá nhiều màu sắc để không làm rối giao diện.26
+   * Màu sắc cho trạng thái: Sử dụng các màu tiêu chuẩn như Xanh lá cho thông báo thành công, Đỏ cho lỗi hoặc cảnh báo, Vàng cho thông tin/lưu ý. Apple cũng cung cấp các màu hệ thống cho các mục đích này (ví dụ: systemGreen, systemRed, systemYellow trong SwiftUI/UIKit).26
+   2. Typography:
+   * Font chữ: Sử dụng bộ font San Francisco (SF Pro, SF Pro Text, SF Pro Display) mặc định của Apple. Đây là font chữ được tối ưu cho khả năng đọc trên các thiết bị của Apple và mang lại cảm giác quen thuộc cho người dùng.22
+   * Kích thước chữ: Tuân thủ khuyến nghị của Apple HIG, đảm bảo kích thước chữ tối thiểu là 11pt cho nội dung chính để dễ đọc. Sử dụng các kích thước khác nhau để tạo sự phân cấp thông tin (tiêu đề, phụ đề, nội dung).
+   * Độ tương phản: Đảm bảo độ tương phản cao giữa màu chữ và màu nền.
+   3. Biểu tượng (Icons):
+   * Sử dụng bộ biểu tượng SF Symbols của Apple nếu có thể, vì chúng được thiết kế để hoạt động hài hòa với font San Francisco và hỗ trợ nhiều trọng số, kích thước.
+   * Nếu cần biểu tượng tùy chỉnh, thiết kế theo phong cách phẳng, tối giản, đường nét rõ ràng, dễ hiểu.
+   4. Bố cục (Layout):
+   * Ưu tiên bố cục dựa trên lưới (grid layout) để đảm bảo sự ngăn nắp và căn chỉnh nhất quán của các yếu tố trên màn hình.22
+   * Sử dụng khoảng trắng (whitespace) một cách hào phóng để giao diện thoáng đãng, dễ nhìn và giúp người dùng tập trung vào nội dung quan trọng.
+   * Đảm bảo các vùng chạm (tap targets) đủ lớn và có khoảng cách hợp lý để tránh chạm nhầm, đặc biệt trên màn hình cảm ứng nhỏ của iPhone.
+Dưới đây là bảng đề xuất chi tiết về màu sắc và font chữ:
+Bảng 2: Đề xuất Bảng màu và Font chữ cho Giao diện Người dùng
+
+
+Yếu tố
+	Mã màu Hex/Tên màu
+	Mục đích sử dụng/Lưu ý
+	Tham khảo từ Apple
+	Màu nền chính
+	#F5F5F7 (Athens Gray) hoặc #FFFFFF (White)
+	Tạo không gian làm việc sạch sẽ, thoáng đãng, làm nổi bật nội dung.
+	25 (System Backgrounds)
+	Màu chữ chính
+	#1D1D1F (Shark) hoặc #000000 (Black)
+	Đảm bảo độ tương phản cao với nền sáng, dễ đọc.
+	25 (Label Colors)
+	Màu chữ phụ
+	#8A8A8E (iOS Gray)
+	Cho các thông tin ít quan trọng hơn, mô tả ngắn.
+	26 (Secondary/Tertiary Label)
+	Màu nhấn CTA
+	#007AFF (iOS Blue) hoặc tương tự Science Blue #0066CC
+	Cho các nút kêu gọi hành động chính, liên kết quan trọng.
+	25 (System Blue)
+	Màu thành công
+	#34C759 (iOS Green)
+	Thông báo các thao tác thành công.
+	26 (System Green)
+	Màu cảnh báo/Lỗi
+	#FF3B30 (iOS Red)
+	Thông báo lỗi, các hành động nguy hiểm (xóa).
+	26 (System Red)
+	Màu thông tin
+	#FF9500 (iOS Orange) hoặc #007AFF (iOS Blue)
+	Cho các thông báo mang tính thông tin, không nguy cấp.
+	26 (System Orange/Blue)
+	Font tiêu đề
+	SF Pro Display (Bold, Semibold)
+	Kích thước lớn, rõ ràng cho các tiêu đề chính của màn hình, section.
+	Apple HIG, 22
+	Font nội dung
+	SF Pro Text (Regular, Medium)
+	Kích thước vừa phải, dễ đọc cho các đoạn văn bản, nhãn, thông tin chi tiết. Tối thiểu 11pt.
+	Apple HIG, 22
+	Việc áp dụng nhất quán các yếu tố này sẽ tạo ra một giao diện người dùng không chỉ đẹp mắt mà còn thực sự "phù hợp với iPhone", mang lại trải nghiệm tốt nhất cho nhân viên sử dụng hệ thống.
+IV. Phân tích Trường hợp Sử dụng (Use Cases) và Luồng Chức năng
+Phân tích trường hợp sử dụng (Use Cases) giúp xác định rõ các chức năng mà hệ thống cần cung cấp từ góc độ người dùng. Luồng chức năng (User Flows) hoặc Sơ đồ Luồng Dữ liệu (DFD) sẽ minh họa cách người dùng tương tác với hệ thống để hoàn thành các mục tiêu đó.
+A. Các Tác nhân (Actors) chính
+Các tác nhân chính tương tác với hệ thống quản lý bán hàng iPhone bao gồm 27:
+   1. Nhân viên Bán hàng (Sales Staff):
+   * Là người dùng thường xuyên nhất của hệ thống.
+   * Thực hiện các giao dịch bán hàng, tạo đơn hàng, chọn sản phẩm và IMEI.
+   * Tra cứu thông tin sản phẩm, tồn kho, giá cả.
+   * Tra cứu thông tin khách hàng (nếu có).
+   * Xử lý các yêu cầu trả hàng.
+   * Kiểm tra thông tin bảo hành sản phẩm cho khách.
+   * Đăng nhập và đăng xuất khỏi hệ thống.
+   2. Quản lý Cửa hàng (Store Manager):
+   * Có quyền truy cập rộng hơn Nhân viên Bán hàng.
+   * Quản lý danh mục sản phẩm, biến thể, giá bán.
+   * Xem và phân tích các báo cáo thống kê doanh thu, tồn kho, lợi nhuận.
+   * Quản lý tài khoản nhân viên và phân quyền.
+   * Theo dõi và giám sát hoạt động nhập kho.
+   * Cấu hình các chương trình khuyến mãi (nếu có).
+   * Quản lý thông tin chung của cửa hàng.
+   3. Nhân viên Kho (Inventory Staff):
+   * Chịu trách nhiệm chính cho quy trình nhập kho.
+   * Tạo phiếu nhập kho, nhập chi tiết sản phẩm và danh sách IMEI/Sê-ri.
+   * Thực hiện kiểm kê kho định kỳ hoặc đột xuất.
+   * Theo dõi số lượng tồn kho.
+   * Trong các cửa hàng nhỏ, vai trò này có thể do Nhân viên Bán hàng hoặc Quản lý Cửa hàng đảm nhiệm. Hệ thống phân quyền cần linh hoạt để hỗ trợ điều này, tuy nhiên, việc định nghĩa Use Case theo vai trò logic sẽ giúp làm rõ các chức năng cần thiết.
+   4. Hệ thống Thanh toán Bên ngoài (External Payment System) (Gián tiếp):
+   * Không phải là người dùng trực tiếp nhưng là một thực thể tương tác.
+   * Ví dụ: Máy POS quẹt thẻ, cổng thanh toán trực tuyến.
+   * Hệ thống POS sẽ gửi yêu cầu thanh toán và nhận phản hồi (thành công/thất bại) từ hệ thống này, nhưng không xử lý logic thanh toán chi tiết của thẻ.
+   5. Hệ thống Kiểm tra Bảo hành Apple (Apple Warranty Check System) (Gián tiếp):
+   * Là website checkcoverage.apple.com của Apple.8
+   * Hệ thống POS có thể hỗ trợ truy cập hoặc cung cấp thông tin (IMEI) để nhân viên tra cứu trên hệ thống này.
+B. Sơ đồ Use Case tổng thể
+Sơ đồ Use Case tổng thể (sử dụng ký hiệu UML) sẽ minh họa mối quanHệ giữa các Actor và các chức năng chính (Use Cases) mà họ thực hiện.27 Sơ đồ này giúp cung cấp cái nhìn bao quát về phạm vi chức năng của hệ thống.
+(Hình ảnh minh họa cho Sơ đồ Use Case tổng thể sẽ được trình bày ở đây, bao gồm các Actor chính và các Use Case chính như: Đăng nhập, Tạo Đơn hàng Mới, Tra cứu Sản phẩm, Quản lý Sản phẩm, Nhập kho Sản phẩm, Xem Báo cáo, Kiểm tra Bảo hành, v.v. Các mối quan hệ <<include>> và <<extend>> sẽ được thể hiện nếu cần thiết. Ví dụ, Use Case "Tạo Đơn hàng Mới" sẽ <<include>> Use Case "Chọn IMEI Sản phẩm" và có thể <<extend>> Use Case "Áp dụng Khuyến mãi".)
+Sơ đồ này sẽ trực quan hóa các tương tác chính, ví dụ:
+   * Nhân viên Bán hàng tương tác với các Use Case: Đăng nhập, Tạo Đơn hàng Mới, Tra cứu Sản phẩm theo Tên/Model, Tra cứu Sản phẩm theo IMEI, Chọn Biến thể Sản phẩm, Chọn IMEI/Serial cho Đơn hàng, Thêm Khách hàng vào Đơn hàng, Xử lý Thanh toán, In Hóa đơn, Xử lý Trả hàng, Kiểm tra Thông tin Bảo hành Sản phẩm.
+   * Quản lý Cửa hàng tương tác với các Use Case của Nhân viên Bán hàng, và thêm các Use Case: Quản lý Danh mục Sản phẩm, Quản lý Biến thể Sản phẩm, Cập nhật Giá Sản phẩm, Xem Báo cáo Doanh thu, Xem Báo cáo Tồn kho, Xem Báo cáo Lợi nhuận, Quản lý Tài khoản Nhân viên, Phân quyền Người dùng, Quản lý Thông tin Cửa hàng, Cấu hình Khuyến mãi.
+   * Nhân viên Kho tương tác với các Use Case: Đăng nhập, Tạo Phiếu Nhập kho, Nhập IMEI/Serial cho Hàng nhập, Xác nhận Nhập kho, Kiểm kê Kho, Xem Tồn kho Chi tiết.
+C. Đặc tả chi tiết các Use Case quan trọng
+Để đảm bảo các yêu cầu được hiểu rõ và triển khai chính xác, các Use Case quan trọng cần được đặc tả chi tiết.28 Việc này đặc biệt quan trọng vì sự chi tiết và chính xác của đặc tả Use Case sẽ ảnh hưởng trực tiếp đến chất lượng của thiết kế UI/UX, thiết kế cơ sở dữ liệu và quá trình phát triển phần mềm.
+Mỗi Use Case sẽ được đặc tả theo một mẫu chuẩn, bao gồm các thông tin như:
+   * Use Case ID: Mã định danh duy nhất.
+   * Use Case Name: Tên Use Case, nên ngắn gọn, rõ ràng và bắt đầu bằng động từ.27
+   * Actor(s): Các tác nhân tham gia.
+   * Description: Mô tả ngắn gọn mục đích của Use Case. Có thể sử dụng cú pháp User Story: "Là <Actor>, tôi muốn <Use Case Name>, để đạt được <mục đích>".29
+   * Priority: Mức độ ưu tiên (Cao, Trung bình, Thấp).
+   * Trigger: Sự kiện hoặc điều kiện kích hoạt Use Case.29
+   * Pre-conditions: Các điều kiện phải được thỏa mãn trước khi Use Case có thể bắt đầu.29
+   * Post-conditions: Trạng thái của hệ thống sau khi Use Case hoàn thành thành công.29
+   * Basic Flow (Luồng cơ bản): Các bước tương tác chính tuần tự giữa Actor và Hệ thống để Use Case thực hiện thành công.29
+   * Alternative Flows (Luồng thay thế): Các kịch bản hợp lệ khác có thể xảy ra, dẫn đến kết quả mong muốn nhưng theo một con đường khác.29
+   * Exception Flows (Luồng ngoại lệ): Cách hệ thống xử lý các lỗi hoặc tình huống không mong muốn có thể xảy ra trong quá trình thực hiện Use Case.29 Việc xác định và xử lý tốt các luồng này sẽ góp phần tạo nên một hệ thống mạnh mẽ và đáng tin cậy, đồng thời là cơ sở cho việc viết các kịch bản kiểm thử (Test Cases) sau này.29
+   * Business Rules: Các quy tắc nghiệp vụ cụ thể liên quan đến Use Case.29
+UC01: Quản lý Định danh Sản phẩm
+   * Use Case ID: UC01
+   * Use Case Name: Quản lý Định danh Sản phẩm
+   * Actor(s): Quản lý Cửa hàng (QLCH) (chịu trách nhiệm chính cho việc định nghĩa và duy trì dữ liệu sản phẩm), Hệ thống (đảm bảo cấu trúc và tính duy nhất). Các Actor khác như Nhân viên Kho (NVK), Nhân viên Bán hàng (NVBH) sẽ tương tác với dữ liệu sản phẩm được định nghĩa bởi Use Case này.
+   * Description: Là Quản lý Cửa hàng, tôi muốn định nghĩa và quản lý thông tin chi tiết của các dòng sản phẩm iPhone và các biến thể của chúng (ví dụ: model, màu sắc, dung lượng lưu trữ), cũng như đảm bảo mỗi chiếc iPhone vật lý được định danh duy nhất bằng IMEI, để hệ thống có thể theo dõi chính xác sản phẩm từ khâu nhập kho đến khi bán hàng và hỗ trợ các nghiệp vụ liên quan khác.
+   * Priority: Rất Cao (Đây là Use Case nền tảng, dữ liệu của nó là đầu vào cho nhiều Use Case khác).
+   * Trigger:
+   * Có dòng sản phẩm iPhone mới cần được giới thiệu và bán tại cửa hàng (ví dụ: Apple ra mắt iPhone thế hệ mới).
+   * Có sự thay đổi về thông tin của các sản phẩm iPhone hiện có (ví dụ: cập nhật giá bán, ngừng kinh doanh một màu sắc, thêm một phiên bản dung lượng mới cho model cũ).
+   * Nhu cầu ban đầu khi thiết lập hệ thống để nhập toàn bộ danh mục sản phẩm.
+   * Pre-conditions:
+   * QLCH đã đăng nhập vào hệ thống với quyền quản trị danh mục sản phẩm.
+   * QLCH có thông tin chi tiết và chính xác về các model iPhone, các biến thể (màu sắc, dung lượng, mã SKU nếu có), giá cả dự kiến, và các thuộc tính khác cần quản lý.
+   * Post-conditions:
+   * Thông tin về các model iPhone và các biến thể của chúng (bao gồm các thuộc tính như tên model, màu sắc, dung lượng, mã SKU, giá bán lẻ, giá nhập) được lưu trữ một cách chính xác, có cấu trúc và nhất quán trong cơ sở dữ liệu của hệ thống (ví dụ: trong collection products và subcollection variants).
+   * Hệ thống sẵn sàng để các IMEI/Sê-ri cụ thể của từng sản phẩm vật lý được liên kết với các biến thể sản phẩm đã định nghĩa này trong quá trình nhập kho (UC02).
+   * Hệ thống có cơ chế để đảm bảo tính duy nhất của IMEI trên toàn bộ sản phẩm được quản lý.
+   * Basic Flow (Luồng cơ bản - tập trung vào việc QLCH quản lý định nghĩa sản phẩm):
+   1. QLCH chọn chức năng "Quản lý Sản phẩm" hoặc "Danh mục Sản phẩm" từ menu chính của hệ thống.
+   2. Hệ thống hiển thị danh sách các model sản phẩm iPhone hiện đang được quản lý.
+   3. Để thêm một Model Sản phẩm iPhone mới (ví dụ: "iPhone 16 Pro Max"):
+a. QLCH chọn hành động "Thêm Model Sản phẩm mới".
+b. Hệ thống hiển thị một form để nhập thông tin chi tiết cho model sản phẩm mới, bao gồm:
+* Tên Model (bắt buộc, ví dụ: "iPhone 16 Pro Max").
+* Mô tả chung (tùy chọn).
+* Thương hiệu (mặc định là "Apple", có thể không cần nhập).
+* Danh mục (mặc định là "Điện thoại di động", có thể không cần nhập).
+* Hình ảnh đại diện chung cho model (tùy chọn).
+c. QLCH điền đầy đủ thông tin và nhấn "Lưu".
+d. Hệ thống kiểm tra tính hợp lệ của dữ liệu (ví dụ: tên model không được để trống).
+e. Nếu hợp lệ, Hệ thống lưu thông tin model sản phẩm mới vào collection products và thông báo thành công.
+   4. Để quản lý các Biến thể (Màu sắc, Dung lượng) cho một Model Sản phẩm đã có:
+a. Từ danh sách model sản phẩm, QLCH chọn một model cụ thể (ví dụ: "iPhone 16 Pro Max").
+b. Hệ thống hiển thị thông tin chi tiết của model đó và danh sách các biến thể hiện có (nếu có).
+c. Để thêm một Biến thể mới (ví dụ: "iPhone 16 Pro Max, 256GB, Titan Tự Nhiên"):
+i. QLCH chọn hành động "Thêm Biến thể mới".
+ii. Hệ thống hiển thị form nhập thông tin cho biến thể, bao gồm:
+* Màu sắc (bắt buộc, ví dụ: "Titan Tự Nhiên" - có thể chọn từ danh sách màu đã định nghĩa trước hoặc nhập mới).
+* Dung lượng lưu trữ (bắt buộc, ví dụ: "256GB" - có thể chọn từ danh sách dung lượng đã định nghĩa trước hoặc nhập mới).
+* Mã SKU (Stock Keeping Unit - bắt buộc, duy nhất, có thể do hệ thống gợi ý dựa trên model, màu, dung lượng hoặc QLCH tự nhập).
+* Giá bán lẻ dự kiến (bắt buộc).
+* Giá nhập dự kiến (tùy chọn).
+* Hình ảnh đại diện riêng cho biến thể này (tùy chọn, nếu khác hình ảnh chung của model).
+* Trạng thái (mặc định là "Đang hoạt động").
+iii.QLCH điền thông tin và nhấn "Lưu".
+iv. Hệ thống kiểm tra tính hợp lệ (SKU duy nhất, giá trị hợp lệ).
+v. Nếu hợp lệ, Hệ thống lưu thông tin biến thể mới vào subcollection variants của model sản phẩm tương ứng và thông báo thành công.
+d. Để sửa thông tin một Biến thể đã có: QLCH chọn biến thể từ danh sách, Hệ thống hiển thị form với thông tin hiện tại, QLCH chỉnh sửa và nhấn "Lưu".
+e. Để xóa một Biến thể: QLCH chọn biến thể và nhấn "Xóa". Hệ thống yêu cầu xác nhận. (Lưu ý: việc xóa cần cân nhắc nếu biến thể đã có sản phẩm vật lý (IMEI) liên kết).
+   5. Định danh IMEI (Luồng ngầm định, được kích hoạt và sử dụng bởi các Use Case khác):
+a. Trong quá trình Nhập kho (UC02), khi NVK nhập một IMEI/Sê-ri cụ thể, IMEI đó sẽ được liên kết chặt chẽ với một productId (ID của model sản phẩm) và một variantId (ID của biến thể sản phẩm) đã được định nghĩa ở các bước trên.
+b. Hệ thống, thông qua logic ứng dụng và/hoặc các quy tắc bảo mật của Firestore, sẽ đảm bảo rằng mỗi IMEI được nhập vào collection inventory_items là duy nhất trên toàn hệ thống.
+c. Trong quá trình Bán hàng, khi NVBH chọn một sản phẩm để bán, hệ thống sẽ chỉ cho phép chọn từ các IMEI đang có trạng thái "Trong kho" và đã được định danh rõ ràng thuộc về một biến thể cụ thể.
+      * Alternative Flows (Luồng thay thế):
+      * AF1: Chỉnh sửa thông tin chung của Model sản phẩm: QLCH chọn một model từ danh sách, chọn "Sửa thông tin Model", Hệ thống hiển thị form với thông tin hiện tại, QLCH chỉnh sửa (ví dụ: mô tả, hình ảnh chung) và nhấn "Lưu".
+      * AF2: Quản lý các thuộc tính (màu sắc, dung lượng) dùng chung: Hệ thống có thể cung cấp một giao diện riêng để QLCH định nghĩa trước danh sách các màu sắc chuẩn (VD: "Titan Đen", "Titan Trắng") và các mức dung lượng chuẩn (VD: "128GB", "256GB"). Khi tạo/sửa biến thể, QLCH sẽ chọn từ các danh sách này thay vì nhập tự do, giúp đảm bảo tính nhất quán dữ liệu.
+      * AF3: Xem lịch sử thay đổi của sản phẩm/biến thể: (Nâng cao) Hệ thống có thể ghi log các thay đổi quan trọng đối với thông tin sản phẩm hoặc biến thể.
+      * Exception Flows (Luồng ngoại lệ):
+      * EF1: Lỗi khi lưu Model/Biến thể do SKU bị trùng: Khi QLCH lưu một biến thể mới hoặc sửa SKU của biến thể cũ, nếu SKU đó đã tồn tại cho một biến thể khác trong hệ thống, Hệ thống hiển thị thông báo lỗi "Mã SKU đã tồn tại. Vui lòng nhập mã SKU khác." và không cho phép lưu.
+      * EF2: Lỗi do nhập dữ liệu không hợp lệ: Nếu QLCH nhập dữ liệu không đúng định dạng hoặc bỏ trống các trường bắt buộc (ví dụ: giá bán là chữ, tên model để trống), Hệ thống hiển thị thông báo lỗi cụ thể tại trường đó và yêu cầu QLCH sửa lại.
+      * EF3: Lỗi khi xóa Model hoặc Biến thể đang có sản phẩm (IMEI) liên kết: Nếu QLCH cố gắng xóa một model hoặc biến thể mà vẫn còn các IMEI/Sê-ri (trong inventory_items) đang được liên kết với nó (trạng thái "Trong kho", "Đã bán", v.v.), Hệ thống sẽ hiển thị cảnh báo "Không thể xóa vì đang có sản phẩm liên quan. Vui lòng xử lý các sản phẩm đó trước." hoặc cung cấp tùy chọn "Ngừng kinh doanh" thay vì xóa hẳn.
+      * EF4: Mất kết nối mạng: Trong quá trình QLCH nhập liệu, nếu mất kết nối mạng, Hệ thống thông báo lỗi. Dữ liệu chưa lưu có thể bị mất.
+      * Business Rules:
+      * BR1: Mỗi Model sản phẩm iPhone phải có một tên định danh duy nhất trong hệ thống.
+      * BR2: Trong phạm vi một Model sản phẩm, mỗi Biến thể phải là sự kết hợp duy nhất của các thuộc tính chính (ví dụ: không thể có hai biến thể "iPhone 16 Pro Max, 256GB, Titan Tự Nhiên").
+      * BR3: Mã SKU của mỗi Biến thể sản phẩm phải là duy nhất trên toàn bộ hệ thống.
+      * BR4: Mỗi IMEI/Sê-ri của sản phẩm vật lý phải là duy nhất trên toàn bộ hệ thống (điều này sẽ được kiểm tra và ràng buộc khi IMEI được nhập vào collection inventory_items trong UC02).
+      * BR5: Chỉ những người dùng có vai trò Quản lý Cửa hàng (hoặc các vai trò được phân quyền tương đương) mới có quyền thực hiện các thao tác tạo mới, chỉnh sửa, hoặc xóa thông tin Model sản phẩm và Biến thể.
+UC02: Nhân viên Kho Nhập kho iPhone theo IMEI
+      * Use Case ID: UC02
+      * Use Case Name: Nhân viên Kho Nhập kho iPhone theo IMEI
+      * Actor(s): Nhân viên Kho (NVK)
+      * Description: Là Nhân viên Kho, tôi muốn nhập kho sản phẩm iPhone mới bằng cách ghi nhận thông tin model, biến thể và từng IMEI cụ thể, để đảm bảo dữ liệu tồn kho chính xác và sản phẩm sẵn sàng cho việc bán hàng.
+      * Priority: Cao
+      * Trigger: Có lô hàng iPhone mới cần nhập vào kho của cửa hàng.
+      * Pre-conditions:
+      * NVK đã đăng nhập vào hệ thống với quyền truy cập chức năng nhập kho.
+      * Có danh sách các sản phẩm iPhone (model, dung lượng, màu sắc) và IMEI tương ứng cần nhập từ nhà cung cấp.
+      * Các thông tin về model, biến thể sản phẩm (màu, dung lượng) đã được định nghĩa trước trong hệ thống (thông qua UC01).
+      * Post-conditions:
+      * Thông tin các sản phẩm iPhone mới (bao gồm IMEI, model, dung lượng, màu sắc, giá nhập, ngày nhập, trạng thái "Trong kho") được lưu trữ chính xác trong hệ thống (collection products hoặc inventory_items).
+      * Số lượng tồn kho của các biến thể sản phẩm tương ứng (trong productVariants.stockQuantity) được cập nhật.
+      * Hệ thống ghi nhận lịch sử nhập kho (thông qua purchaseOrders và liên kết trong products).
+      * Basic Flow (Luồng cơ bản):
+      1. NVK chọn chức năng "Nhập kho" trên giao diện.
+      2. Hệ thống hiển thị form tạo phiếu nhập kho (tham chiếu đến purchaseOrders).
+      3. NVK nhập thông tin chung của phiếu nhập: Nhà cung cấp (tùy chọn, từ suppliers), Ngày nhập, Người nhập (tự động lấy userId của NVK), Ghi chú (tùy chọn).
+      4. Với mỗi loại sản phẩm (biến thể) trong lô hàng:
+a. NVK chọn Model iPhone (ví dụ: từ danh sách các model đã định nghĩa).
+b. NVK chọn Biến thể (Dung lượng, Màu sắc) của model đó (ví dụ: từ danh sách các productVariants đã định nghĩa cho model).
+c. NVK nhập số lượng IMEI dự kiến sẽ nhập cho biến thể này.
+d. NVK nhập giá nhập cho mỗi đơn vị sản phẩm của biến thể này (sẽ lưu vào từng bản ghi IMEI).
+      5. Với mỗi đơn vị sản phẩm đã khai báo ở bước 4, NVK nhập (hoặc quét mã vạch) số IMEI tương ứng.
+a. Hệ thống kiểm tra tính hợp lệ của IMEI (ví dụ: đúng định dạng 15 số).
+b. Hệ thống kiểm tra xem IMEI đã tồn tại trong collection products (IMEI-level) chưa:
+* Nếu IMEI đã tồn tại với trạng thái "Trong kho" hoặc "Đã bán", hiển thị cảnh báo và không cho phép thêm.
+* Nếu IMEI đã tồn tại với trạng thái "Đã trả hàng" (và đủ điều kiện nhập lại kho), cho phép tiếp tục hoặc yêu cầu xác nhận.
+      6. NVK nhấn nút "Thêm sản phẩm vào phiếu" hoặc tương tự để đưa các IMEI vào danh sách nhập tạm thời của phiếu nhập.
+      7. Sau khi nhập xong tất cả IMEI cho lô hàng, NVK rà soát lại thông tin trên phiếu nhập (danh sách sản phẩm, IMEI, số lượng, giá).
+      8. NVK nhấn "Xác nhận nhập kho".
+      9. Hệ thống lưu thông tin phiếu nhập kho vào collection purchaseOrders.
+      10. Hệ thống tạo các bản ghi mới cho từng IMEI trong collection products (hoặc tên gọi khác như inventory_items) với các thông tin: imei, model (tên model), capacity, color (thông tin biến thể), productVariantId (ID của biến thể từ productVariants), importDate, importPrice, status ("Trong kho"), supplierId (nếu có), warehouseStaffId (ID người nhập), purchaseOrderId (ID phiếu nhập vừa tạo).
+      11. Hệ thống (thông qua Cloud Function) tự động cập nhật (tăng) trường stockQuantity trong document productVariants tương ứng dựa trên số lượng IMEI có status là "Trong kho" hoặc "Trong kho - Hàng trả lại" thuộc về biến thể đó.
+      12. Hệ thống hiển thị thông báo nhập kho thành công và có thể cung cấp tùy chọn in phiếu nhập.
+         * Alternative Flows (Luồng thay thế):
+         * AF1: Nhập IMEI hàng loạt: NVK có thể tải lên một file CSV/Excel chứa danh sách IMEI và thông tin biến thể sản phẩm tương ứng. Hệ thống sẽ xử lý và kiểm tra từng dòng.
+         * AF2: Tạo mới Model/Biến thể khi nhập kho (Ít khuyến khích cho NVK, nên là QLCH làm ở UC01): Nếu model hoặc biến thể chưa có trong hệ thống, hệ thống có thể cảnh báo và yêu cầu QLCH định nghĩa trước, hoặc (tùy phân quyền) cho phép NVK tạo nhanh thông tin cơ bản (cần QLCH duyệt sau).
+         * Exception Flows (Luồng ngoại lệ):
+         * EF1: IMEI không hợp lệ: Hệ thống báo lỗi "IMEI không đúng định dạng", yêu cầu NVK kiểm tra và nhập lại.
+         * EF2: IMEI đã tồn tại (và không được phép nhập lại): Hệ thống báo lỗi "IMEI [số IMEI] đã tồn tại trong kho hoặc đã bán. Không thể nhập lại.", NVK cần kiểm tra lại.
+         * EF3: Mất kết nối mạng khi đang nhập liệu: Hệ thống thông báo lỗi kết nối. Dữ liệu chưa lưu có thể bị mất. Cân nhắc cơ chế lưu nháp tự động cho phiếu nhập.
+         * EF4: Số lượng IMEI nhập không khớp với số lượng khai báo cho biến thể: Hệ thống cảnh báo và yêu cầu NVK kiểm tra lại trước khi xác nhận.
+         * Business Rules:
+         * BR1: Mỗi IMEI nhập vào phải là duy nhất trên toàn hệ thống (trừ trường hợp nhập lại hàng trả).
+         * BR2: Giá nhập phải là số dương.
+         * BR3: Chỉ những tài khoản NVK (hoặc vai trò được phân quyền) mới được thực hiện chức năng nhập kho.
+         * BR4: Mỗi IMEI nhập kho phải được liên kết với một productVariantId đã tồn tại.
+UC03: Quản lý Cửa hàng Xem Báo cáo Doanh thu theo Biến thể Sản phẩm
+         * Use Case ID: UC03
+         * Use Case Name: Quản lý Cửa hàng Xem Báo cáo Doanh thu theo Biến thể Sản phẩm
+         * Actor(s): Quản lý Cửa hàng (QLCH)
+         * Description: Là Quản lý Cửa hàng, tôi muốn xem báo cáo doanh thu được phân loại theo từng biến thể sản phẩm iPhone (model, dung lượng, màu sắc) trong một khoảng thời gian tùy chọn, để đánh giá hiệu quả kinh doanh của từng loại sản phẩm và đưa ra quyết định nhập hàng, khuyến mãi phù hợp.
+         * Priority: Cao
+         * Trigger: QLCH muốn phân tích tình hình doanh thu chi tiết theo sản phẩm.
+         * Pre-conditions:
+         * QLCH đã đăng nhập vào hệ thống với quyền truy cập chức năng báo cáo.
+         * Đã có dữ liệu bán hàng (các đơn hàng đã hoàn thành trong collection sales) trong hệ thống.
+         * Post-conditions:
+         * QLCH nắm được thông tin doanh thu chi tiết (số lượng bán, tổng tiền) cho từng biến thể sản phẩm trong khoảng thời gian đã chọn.
+         * Thông tin được trình bày một cách trực quan (bảng, biểu đồ) để dễ phân tích.
+         * Basic Flow (Luồng cơ bản):
+         1. QLCH chọn chức năng "Báo cáo" -> "Báo cáo Doanh thu" -> "Theo Biến thể Sản phẩm" trên giao diện.
+         2. Hệ thống hiển thị giao diện báo cáo, có các bộ lọc.
+         3. QLCH chọn khoảng thời gian báo cáo (Từ ngày - Đến ngày). Mặc định có thể là tháng hiện tại.
+         4. QLCH có thể chọn thêm các bộ lọc khác (VD: theo Model cụ thể nếu muốn xem các biến thể của chỉ một model).
+         5. QLCH nhấn nút "Xem báo cáo" (hoặc hệ thống tự động cập nhật khi thay đổi bộ lọc).
+         6. Hệ thống truy vấn collection sales, lọc theo saleDate trong khoảng thời gian đã chọn và status là "Hoàn thành".
+         7. Với mỗi đơn hàng (sales document) phù hợp, hệ thống truy xuất các items (là array of objects trong document đó).
+         8. Hệ thống tổng hợp dữ liệu từ các items: nhóm theo productVariantId (hoặc productName đã denormalize), tính tổng quantity (thường là 1 cho mỗi IMEI) và tổng finalPrice cho mỗi nhóm.
+         9. Hệ thống hiển thị báo cáo dưới dạng bảng, bao gồm các cột: Tên biến thể sản phẩm (lấy từ productName hoặc tra cứu từ productVariants dựa trên productVariantId), Số lượng bán, Tổng doanh thu.
+         10. Hệ thống có thể hiển thị biểu đồ (ví dụ: biểu đồ tròn thể hiện tỷ trọng doanh thu của các biến thể, hoặc biểu đồ cột so sánh doanh thu).
+         11. Hệ thống cũng hiển thị tổng doanh thu chung cho tất cả các biến thể trong khoảng thời gian và bộ lọc đã chọn.
+         * Alternative Flows (Luồng thay thế):
+         * AF1: Xuất báo cáo: QLCH có thể có tùy chọn xuất báo cáo ra file (VD: CSV, Excel, PDF).
+         * AF2: Sắp xếp dữ liệu: QLCH có thể sắp xếp bảng báo cáo theo Số lượng bán hoặc Tổng doanh thu (tăng dần/giảm dần).
+         * Exception Flows (Luồng ngoại lệ):
+         * EF1: Không có dữ liệu bán hàng: Nếu không có giao dịch nào phù hợp với bộ lọc, hệ thống hiển thị thông báo "Không có dữ liệu bán hàng cho lựa chọn này."
+         * EF2: Lỗi truy vấn dữ liệu: Nếu có lỗi xảy ra trong quá trình truy vấn hoặc tổng hợp dữ liệu (ví dụ: do khối lượng dữ liệu lớn, cần tối ưu query hoặc dùng Cloud Function để pre-aggregate), hệ thống hiển thị thông báo lỗi chung và gợi ý thử lại hoặc liên hệ quản trị viên.
+         * Business Rules:
+         * BR1: Doanh thu chỉ được tính từ các đơn hàng có status "Hoàn thành" và paymentStatus "Đã thanh toán".
+         * BR2: Dữ liệu báo cáo phải được cập nhật theo thời gian thực hoặc gần thời gian thực (tùy thuộc vào phương pháp tổng hợp dữ liệu).
+UC04: Nhân viên Bán hàng Kiểm tra Thời hạn Bảo hành Sản phẩm qua IMEI
+         * Use Case ID: UC04
+         * Use Case Name: Nhân viên Bán hàng Kiểm tra Thời hạn Bảo hành Sản phẩm qua IMEI
+         * Actor(s): Nhân viên Bán hàng (NVBH)
+         * Description: Là Nhân viên Bán hàng, tôi muốn kiểm tra nhanh thông tin và thời hạn bảo hành của một sản phẩm iPhone dựa trên số IMEI do khách hàng cung cấp, để hỗ trợ khách hàng một cách chính xác và kịp thời.
+         * Priority: Cao
+         * Trigger: Khách hàng yêu cầu kiểm tra thông tin bảo hành cho sản phẩm iPhone của họ.
+         * Pre-conditions:
+         * NVBH đã đăng nhập vào hệ thống.
+         * Khách hàng cung cấp số IMEI của sản phẩm cần kiểm tra.
+         * Hệ thống có kết nối internet (nếu cần tra cứu qua hệ thống của Apple).
+         * Post-conditions:
+         * NVBH cung cấp được thông tin bảo hành (ngày mua, ngày hết hạn, trạng thái bảo hành) cho khách hàng.
+         * Basic Flow (Luồng cơ bản):
+         1. NVBH chọn chức năng "Kiểm tra Bảo hành" trên giao diện.
+         2. Hệ thống hiển thị ô nhập liệu IMEI.
+         3. NVBH nhập (hoặc quét mã vạch nếu có) số IMEI của sản phẩm vào ô nhập liệu.
+         4. NVBH nhấn nút "Kiểm tra".
+         5. Hệ thống tìm kiếm trong collection products (IMEI-level) với điều kiện imei == [IMEI nhập vào].
+         6. Nếu IMEI được tìm thấy và sản phẩm có status là "Đã bán" và có thông tin soldDate:
+a. Hệ thống truy xuất thông tin sản phẩm: model, capacity, color.
+b. Hệ thống lấy soldDate (ngày bán) và warrantyPeriodInMonths (thời gian bảo hành đã lưu cho IMEI này, hoặc mặc định của cửa hàng nếu không có).
+c. Hệ thống tính toán ngày hết hạn bảo hành: warrantyEndDate = soldDate + warrantyPeriodInMonths.
+d. Hệ thống hiển thị thông tin:
+* Tên sản phẩm (ví dụ: iPhone 15 Pro 256GB Titan Đen)
+* Số IMEI
+* Ngày bán
+* Ngày bắt đầu bảo hành (thường là ngày bán)
+* Ngày hết hạn bảo hành
+* Trạng thái bảo hành (Còn hạn / Hết hạn - dựa trên so sánh warrantyEndDate với ngày hiện tại)
+         7. Nếu IMEI được tìm thấy nhưng sản phẩm có status không phải "Đã bán" (VD: "Trong kho"): Hệ thống hiển thị "Sản phẩm với IMEI [số IMEI] này chưa được bán ra từ cửa hàng. Không áp dụng thông tin bảo hành của cửa hàng."
+         8. (Tùy chọn nâng cao) Hệ thống có thể cung cấp một liên kết đến trang checkcoverage.apple.com với IMEI đã được điền sẵn, hoặc hướng dẫn NVBH tự tra cứu trên trang đó để có thông tin bảo hành chính thức từ Apple.
+            * Alternative Flows (Luồng thay thế):
+            * AF1: Tra cứu trực tiếp từ Apple: NVBH sử dụng chức năng liên kết đến trang của Apple để xem thông tin bảo hành mới nhất từ hãng.
+            * Exception Flows (Luồng ngoại lệ):
+            * EF1: IMEI không tìm thấy trong hệ thống cửa hàng: Hệ thống hiển thị thông báo "Không tìm thấy thông tin sản phẩm với IMEI [số IMEI] này trong hệ thống của cửa hàng. Vui lòng kiểm tra lại IMEI hoặc sản phẩm có thể không được mua tại đây."
+            * EF2: IMEI không đúng định dạng: Hệ thống báo lỗi "IMEI không đúng định dạng", yêu cầu NVBH nhập lại.
+            * EF3: Lỗi kết nối khi tra cứu online (nếu có): Hệ thống thông báo lỗi kết nối và gợi ý thử lại sau.
+            * Business Rules:
+            * BR1: Thời hạn bảo hành của cửa hàng (nếu có, ngoài bảo hành của Apple) được tính từ soldDate.
+            * BR2: Thông tin bảo hành từ hệ thống Apple (nếu tra cứu) được coi là nguồn thông tin chính thức về bảo hành của hãng.
+UC05: Nhân viên Bán hàng Xử lý Trả hàng
+            * Use Case ID: UC05
+            * Use Case Name: Nhân viên Bán hàng Xử lý Trả hàng
+            * Actor(s): Nhân viên Bán hàng (NVBH), (Có thể liên quan đến Nhân viên Kho nếu hàng trả nhập lại kho)
+            * Description: Là Nhân viên Bán hàng, tôi muốn xử lý yêu cầu trả lại sản phẩm iPhone từ khách hàng, bao gồm kiểm tra điều kiện trả hàng, cập nhật trạng thái sản phẩm và tồn kho, và thực hiện hoàn tiền hoặc đổi sản phẩm, để đảm bảo tuân thủ chính sách của cửa hàng và sự hài lòng của khách hàng.
+            * Priority: Cao
+            * Trigger: Khách hàng đến cửa hàng yêu cầu trả lại sản phẩm iPhone đã mua.
+            * Pre-conditions:
+            * NVBH đã đăng nhập vào hệ thống.
+            * Khách hàng mang sản phẩm iPhone cần trả (còn nguyên vẹn hoặc theo quy định đổi trả) và cung cấp thông tin mua hàng (IMEI hoặc mã đơn hàng gốc).
+            * Cửa hàng có chính sách đổi trả hàng rõ ràng (ví dụ: thời gian cho phép trả, điều kiện sản phẩm).
+            * Post-conditions:
+            * Yêu cầu trả hàng của khách hàng được xử lý theo đúng chính sách.
+            * Trạng thái của sản phẩm (IMEI) trong collection products được cập nhật (VD: "Đã trả hàng").
+            * Tồn kho (productVariants.stockQuantity) được cập nhật nếu sản phẩm được nhập lại kho.
+            * Giao dịch trả hàng (hoàn tiền/đổi hàng) được ghi nhận trong collection returns.
+            * Doanh thu được điều chỉnh nếu cần (có thể thông qua báo cáo hoặc cập nhật đơn hàng gốc).
+            * Khách hàng nhận được biên nhận trả hàng (nếu có).
+            * Basic Flow (Luồng cơ bản):
+            1. NVBH chọn chức năng "Xử lý Trả hàng" trên giao diện.
+            2. Hệ thống yêu cầu nhập IMEI của sản phẩm cần trả hoặc mã đơn hàng gốc (orderNumber từ sales).
+            3. NVBH nhập (hoặc quét) IMEI/mã đơn hàng.
+            4. NVBH nhấn "Tìm kiếm giao dịch".
+            5. Hệ thống tìm kiếm IMEI trong products và/hoặc orderNumber trong sales.
+            6. Nếu tìm thấy giao dịch bán hàng hợp lệ cho IMEI/đơn hàng đó:
+a. Hệ thống hiển thị thông tin chi tiết của giao dịch gốc (từ sales và sales.items).
+b. Hệ thống kiểm tra điều kiện trả hàng dựa trên chính sách của cửa hàng (ví dụ: saleDate so với ngày hiện tại có nằm trong thời gian cho phép trả hàng không? Sản phẩm có thuộc danh mục được trả không?).
+c. Nếu đủ điều kiện trả hàng:
+i. NVBH kiểm tra tình trạng thực tế của sản phẩm (ngoại quan, phụ kiện, hộp, tình trạng hoạt động) so với quy định.
+ii. NVBH nhập lý do trả hàng (lưu vào returns.itemsReturned.reason).
+iii.NVBH chọn hình thức xử lý (lưu vào returns.itemsReturned.actionTaken):
+* Hoàn tiền: Hệ thống đề xuất số tiền hoàn lại (có thể bằng giá mua hoặc trừ phí theo chính sách). NVBH xác nhận.
+* Đổi sản phẩm khác: Hệ thống có thể chuyển sang quy trình bán hàng mới, ghi nhận sản phẩm trả lại như một hình thức thanh toán bù trừ.
+iv. NVBH xác nhận xử lý trả hàng.
+v. Hệ thống cập nhật trạng thái của sản phẩm (IMEI) trong products thành "Đã trả hàng" (hoặc "Trong kho - Hàng trả lại" nếu đủ điều kiện bán lại). Đồng thời cập nhật returnId trong products.
+vi. Hệ thống ghi nhận một bản ghi trả hàng mới trong collection returns, bao gồm: returnNumber, returnDate, originalSaleId, originalOrderNumber, customerId, customerInfo, itemsReturned (array chứa IMEI trả, lý do, tình trạng, hành động, số tiền hoàn), totalRefundAmount, salesStaffId.
+vii.Nếu sản phẩm trả lại được nhập lại kho (ví dụ: products.status thành "Trong kho - Hàng trả lại"), Cloud Function sẽ cập nhật productVariants.stockQuantity.
+viii.Hệ thống cập nhật lại (giảm) doanh thu của ngày/kỳ liên quan (việc này có thể được xử lý ở tầng báo cáo bằng cách trừ đi giá trị các đơn hàng đã trả, hoặc cập nhật status của sales document gốc).
+ix. Hệ thống tùy chọn in biên nhận trả hàng cho khách.
+d. Nếu không đủ điều kiện trả hàng (VD: quá hạn, sản phẩm hư hỏng không theo chính sách): NVBH thông báo rõ lý do cho khách hàng, có thể đề xuất các giải pháp khác (VD: gửi bảo hành nếu sản phẩm lỗi và còn hạn bảo hành).
+            7. Nếu không tìm thấy giao dịch bán hàng cho IMEI/đơn hàng đó: Hệ thống thông báo "Không tìm thấy giao dịch mua hàng cho thông tin này."
+               * Alternative Flows (Luồng thay thế):
+               * AF1: Trả hàng để đổi sản phẩm có giá trị cao hơn/thấp hơn: Hệ thống cần tính toán số tiền chênh lệch khách cần trả thêm hoặc số tiền cửa hàng cần hoàn lại cho khách. Quy trình này có thể liên kết với việc tạo một đơn hàng mới và ghi nhận giá trị hàng trả như một hình thức giảm trừ.
+               * AF2: Sản phẩm trả lại cần kiểm tra kỹ thuật: NVBH ghi nhận trạng thái trong products là "Lỗi - Chờ xử lý". Sản phẩm sẽ được chuyển cho bộ phận kỹ thuật. Sau khi có kết quả kiểm tra, trạng thái sản phẩm và quyết định xử lý (nhập kho, gửi hãng,...) sẽ được cập nhật.
+               * Exception Flows (Luồng ngoại lệ):
+               * EF1: IMEI/Mã đơn hàng không tìm thấy: Hệ thống báo lỗi, yêu cầu NVBH kiểm tra lại.
+               * EF2: Chính sách trả hàng không rõ ràng hoặc có tranh chấp: NVBH cần tham khảo ý kiến của Quản lý Cửa hàng.
+               * EF3: Lỗi khi cập nhật cơ sở dữ liệu (trạng thái sản phẩm, tồn kho, doanh thu): Hệ thống báo lỗi và cần có cơ chế để quản trị viên kiểm tra, khắc phục đảm bảo tính nhất quán dữ liệu (ví dụ: sử dụng Firestore Transactions cho các cập nhật liên quan).
+               * Business Rules:
+               * BR1: Chính sách đổi trả hàng của cửa hàng phải được áp dụng một cách nhất quán (ví dụ: số ngày được trả, tình trạng sản phẩm chấp nhận, các khoản phí nếu có).
+               * BR2: Việc hoàn tiền có thể yêu cầu phê duyệt từ Quản lý Cửa hàng (tùy theo giá trị hoặc chính sách).
+               * BR3: Sản phẩm trả lại nếu nhập lại kho phải được kiểm tra kỹ lưỡng về chất lượng và có thể được bán với một trạng thái/giá khác.
+D. Sơ đồ Luồng Dữ liệu (DFD) hoặc Luồng Chức năng (User Flow Diagrams)
+Để minh họa rõ hơn cách người dùng tương tác và dữ liệu di chuyển trong hệ thống, có thể sử dụng Sơ đồ Luồng Dữ liệu (DFD) hoặc Luồng Chức năng (User Flow Diagrams).30
+               1. Sơ đồ Luồng Dữ liệu (DFD):
+               * Mô tả cách dữ liệu được nhập vào, xử lý, lưu trữ và xuất ra khỏi hệ thống.
+               * DFD Mức 0 (Context Diagram): Thể hiện toàn bộ hệ thống "POS Bán iPhone" như một tiến trình duy nhất, tương tác với các thực thể bên ngoài như Khách hàng, Nhân viên Bán hàng, Quản lý Cửa hàng, Nhân viên Kho, Hệ thống Thanh toán, Hệ thống Apple (Bảo hành).30
+               * DFD Mức 1: Phân rã tiến trình ở Mức 0 thành các chức năng chính (ví dụ: Quản lý Sản phẩm & Tồn kho, Xử lý Bán hàng, Quản lý Khách hàng, Tạo Báo cáo) và các luồng dữ liệu giữa chúng, cũng như các kho dữ liệu (Data Stores) như CSDL Sản phẩm, CSDL Tồn kho IMEI, CSDL Đơn hàng, CSDL Khách hàng.30
+               * DFD sẽ hữu ích để hiểu rõ hơn về mặt xử lý dữ liệu backend và các điểm tích hợp.
+               2. Luồng Chức năng (User Flow Diagrams):
+               * Trực quan hóa các bước cụ thể mà một Actor (người dùng) thực hiện để hoàn thành một tác vụ hoặc mục tiêu trong ứng dụng.31
+               * Ví dụ: Luồng "Nhân viên Bán hàng tạo đơn hàng mới" sẽ bắt đầu từ khi nhân viên đăng nhập, tìm kiếm sản phẩm, chọn biến thể, chọn IMEI, thêm vào giỏ, nhập thông tin khách, xử lý thanh toán, và kết thúc bằng việc in hóa đơn.
+               * User Flow tập trung vào trải nghiệm người dùng và các điểm quyết định (decision points), các màn hình mà người dùng sẽ thấy. Các công cụ như Creately, Gliffy, Visme, hoặc Venngage có thể được sử dụng để tạo các sơ đồ này.31
+               * Đối với báo cáo này, việc trình bày một vài User Flow Diagram cho các quy trình nghiệp vụ chính (như bán hàng, nhập kho) sẽ giúp minh họa rõ ràng hơn cách người dùng tương tác với giao diện NextJS.
+Sự kết hợp giữa Sơ đồ Use Case (xác định ai làm gì) và User Flow Diagram (mô tả cách họ làm điều đó) hoặc DFD (dữ liệu di chuyển như thế nào) sẽ cung cấp một bức tranh toàn diện về kiến trúc chức năng và tương tác của hệ thống.
+V. Thiết kế Cơ sở dữ liệu với Firebase Firestore
+Firebase Firestore là một cơ sở dữ liệu NoSQL, lưu trữ dữ liệu dưới dạng các document được tổ chức trong các collection.33 Thiết kế cấu trúc dữ liệu hiệu quả là rất quan trọng để đảm bảo hiệu năng, khả năng mở rộng và tính dễ truy vấn của hệ thống.
+A. Cấu trúc Collection và Document đề xuất
+Dưới đây là đề xuất cấu trúc các collection và document chính cho hệ thống quản lý bán hàng iPhone, với lưu ý rằng Firestore là schemaless, cho phép sự linh hoạt nhưng việc có một cấu trúc nhất quán là tốt cho việc truy vấn.34
+               1. products (Collection):
+               * Mỗi document đại diện cho một model sản phẩm iPhone (ví dụ: iPhone 15 Pro Max).
+               * Document ID: Có thể là một chuỗi slug dễ đọc (ví dụ: iphone-15-pro-max) hoặc ID tự động tạo bởi Firestore. Tránh sử dụng ID tự tăng tuần tự để ngăn ngừa hotspotting.36
+               * Fields:
+               * name: String (ví dụ: "iPhone 15 Pro Max")
+               * description: String (Mô tả chung về sản phẩm)
+               * brand: String (Giá trị cố định: "Apple")
+               * category: String (Giá trị cố định: "Điện thoại di động")
+               * baseImageUrl: String (URL hình ảnh chung cho model)
+               * tags: Array of strings (ví dụ: ["new_arrival", "flagship"])
+               * createdAt: Timestamp (Thời điểm tạo sản phẩm)
+               * updatedAt: Timestamp (Thời điểm cập nhật gần nhất)
+               * variants (Subcollection bên trong mỗi product document):
+               * Mỗi document trong subcollection này đại diện cho một biến thể cụ thể của model sản phẩm đó.
+               * Document ID: Có thể là mã SKU của biến thể hoặc ID tự động tạo.
+               * Fields:
+               * sku: String (Mã SKU duy nhất cho biến thể, ví dụ: "IP15PM-256-TN")
+               * colorName: String (ví dụ: "Titan Tự Nhiên")
+               * colorHex: String (Mã màu hex, ví dụ: "#D1CFCB", tùy chọn)
+               * storageCapacity: String (ví dụ: "256GB")
+               * price: Number (Giá bán lẻ của biến thể)
+               * costPrice: Number (Giá nhập của biến thể)
+               * imageUrl: String (URL hình ảnh cụ thể cho biến thể, nếu khác baseImageUrl)
+               * attributes: Map (Đối tượng lồng nhau chứa các thuộc tính khác, ví dụ: {"ram": "8GB"})
+               * isActive: Boolean (Biến thể này có còn kinh doanh không)
+               2. inventory_items (Collection):
+               * Mỗi document đại diện cho một đơn vị sản phẩm vật lý cụ thể có IMEI/Sê-ri. Đây là cấp độ quản lý tồn kho chi tiết nhất.
+               * Document ID: Nên sử dụng ID tự động tạo bởi Firestore để đảm bảo phân phối tốt và tránh các vấn đề với ký tự đặc biệt có thể có trong IMEI/Sê-ri nếu dùng chúng làm ID.36
+               * Fields:
+               * imei: String (Mã IMEI duy nhất của thiết bị, cần được index để tìm kiếm nhanh và đảm bảo tính duy nhất ở cấp ứng dụng).
+               * serialNumber: String (Số Sê-ri, tùy chọn, cũng nên được index nếu thường xuyên dùng để tra cứu).
+               * productId: String (Tham chiếu đến Document ID của model sản phẩm trong collection products).
+               * variantId: String (Tham chiếu đến Document ID của biến thể trong subcollection variants của product tương ứng).
+               * status: String (Trạng thái của IMEI: "in_stock", "sold", "reserved", "returned", "defective", "under_repair"). Cần index trường này kết hợp với variantId để truy vấn tồn kho.
+               * entryDate: Timestamp (Ngày nhập kho).
+               * soldDate: Timestamp (Ngày bán, nullable).
+               * supplierId: String (Tham chiếu đến Document ID trong collection suppliers, nullable).
+               * purchaseOrderId: String (Tham chiếu đến Document ID trong collection purchase_orders, nullable).
+               * currentLocation: String (Vị trí hiện tại của sản phẩm, ví dụ: "Cửa hàng chính", "Kho A" - nếu có nhiều địa điểm).
+               * entryPrice: Number (Giá nhập cụ thể của IMEI này, có thể khác nhau theo lô).
+               * notes: String (Ghi chú thêm, ví dụ: "Hàng trưng bày").
+               3. sales_orders (Collection):
+               * Mỗi document đại diện cho một đơn hàng bán ra.
+               * Document ID: ID tự động tạo bởi Firestore.
+               * Fields:
+               * orderNumber: String (Mã đơn hàng duy nhất, có thể tự tạo theo quy tắc của cửa hàng, ví dụ: "SO-YYYYMMDD-XXXX").
+               * customerId: String (Tham chiếu đến Document ID trong collection customers, nullable).
+               * customerInfo: Map (Denormalized thông tin khách hàng: {"name": "Nguyễn Văn A", "phone": "09xxxxxxxx"} để tăng tốc độ đọc khi hiển thị đơn hàng).37
+               * staffId: String (Tham chiếu đến Document ID (UID) của nhân viên bán hàng trong collection users).
+               * staffName: String (Denormalized tên nhân viên).
+               * orderDate: Timestamp (Ngày giờ tạo đơn hàng).
+               * subTotalAmount: Number (Tổng tiền hàng trước giảm giá).
+               * discountAmount: Number (Số tiền giảm giá, default 0).
+               * taxAmount: Number (Số tiền thuế, default 0).
+               * totalAmount: Number (Tổng tiền cuối cùng khách phải trả: subTotalAmount - discountAmount + taxAmount).
+               * paymentMethod: String (Hình thức thanh toán: "cash", "card", "bank_transfer", "apple_pay").
+               * paymentStatus: String (Trạng thái thanh toán: "paid", "pending", "failed").
+               * orderStatus: String (Trạng thái đơn hàng: "completed", "pending_delivery", "returned", "cancelled").
+               * notes: String (Ghi chú của nhân viên về đơn hàng).
+               * order_items (Subcollection bên trong mỗi sales_order document):
+               * Mỗi document đại diện cho một mặt hàng (một IMEI/Sê-ri cụ thể) trong đơn hàng.
+               * Document ID: ID tự động tạo bởi Firestore.
+               * Fields:
+               * inventoryItemId: String (Tham chiếu đến Document ID của inventory_items - chính là IMEI/Sê-ri của iPhone đã bán).
+               * productId: String (Denormalized, tham chiếu đến products).
+               * variantId: String (Denormalized, tham chiếu đến variants).
+               * productName: String (Denormalized tên sản phẩm, ví dụ: "iPhone 15 Pro Max").
+               * variantInfo: Map (Denormalized thông tin biến thể, ví dụ: {"colorName": "Titan Tự Nhiên", "storageCapacity": "256GB"}).
+               * imei: String (Denormalized IMEI của sản phẩm).
+               * quantity: Number (Luôn là 1 đối với iPhone được quản lý bằng IMEI. Có thể >1 cho phụ kiện không quản lý IMEI).
+               * unitPrice: Number (Giá bán của sản phẩm tại thời điểm bán).
+               * itemDiscount: Number (Giảm giá riêng cho mặt hàng này, nếu có).
+               * itemTotal: Number (Thành tiền của mặt hàng này sau giảm giá).
+               4. customers (Collection):
+               * Mỗi document đại diện cho một khách hàng.
+               * Document ID: ID tự động tạo bởi Firestore hoặc SĐT của khách (nếu SĐT được đảm bảo là duy nhất và dùng làm khóa chính).
+               * Fields:
+               * name: String (Tên khách hàng).
+               * phone: String (Số điện thoại, cần index để tìm kiếm và có thể là unique).
+               * email: String (Email, nullable, unique nếu có).
+               * address: String (Địa chỉ, nullable).
+               * totalSpent: Number (Tổng số tiền khách đã chi tiêu, cập nhật sau mỗi đơn hàng).
+               * orderCount: Number (Tổng số đơn hàng đã mua).
+               * lastPurchaseDate: Timestamp (Ngày mua hàng gần nhất).
+               * createdAt: Timestamp.
+               5. users (Collection - Nhân viên/Quản lý):
+               * Mỗi document đại diện cho một người dùng hệ thống (nhân viên, quản lý).
+               * Document ID: Nên sử dụng UID từ Firebase Authentication.
+               * Fields:
+               * email: String (Email dùng để đăng nhập).
+               * displayName: String (Tên hiển thị).
+               * role: String (Vai trò: "sales_staff", "store_manager", "inventory_staff", "admin").
+               * isActive: Boolean (Tài khoản có đang hoạt động không).
+               * createdAt: Timestamp.
+               6. inventory_logs (Collection - Tùy chọn, để theo dõi lịch sử chi tiết):
+               * Ghi lại mọi thay đổi về trạng thái hoặc số lượng của inventory_items (nhập, bán, trả hàng, kiểm kê điều chỉnh, thay đổi trạng thái).
+               * Fields:
+               * inventoryItemId: String (Tham chiếu đến inventory_items).
+               * imei: String (Denormalized IMEI).
+               * timestamp: Timestamp (Thời điểm xảy ra hành động).
+               * action: String (Ví dụ: "stock_in", "sale", "return_customer", "inventory_adjustment", "status_change_to_defective").
+               * quantityChange: Number (Thay đổi số lượng, ví dụ: +1 khi nhập, -1 khi bán).
+               * previousStatus: String (Trạng thái cũ, nullable).
+               * newStatus: String (Trạng thái mới, nullable).
+               * userId: String (Tham chiếu đến người thực hiện hành động).
+               * relatedOrderId: String (Tham chiếu đến sales_orders nếu hành động liên quan đến đơn hàng, nullable).
+               * notes: String.
+Bảng 4: Ví dụ Cấu trúc Collection và Document trong Firestore
+Tên Collection (Ví dụ Path)
+	Ví dụ Document ID
+	Các Fields chính và Kiểu dữ liệu (Ví dụ)
+	Mô tả/Ghi chú
+	products
+	iphone-15-pro-max
+	name: string, brand: string, createdAt: timestamp
+	Lưu thông tin chung của model sản phẩm.
+	products/{productId}/variants
+	sku-ip15pm-256-tn
+	sku: string, colorName: string, storageCapacity: string, price: number
+	Lưu thông tin biến thể cụ thể (màu, dung lượng) của một model.
+	inventory_items
+	FS_AUTO_ID_IMEI
+	imei: string (indexed, unique), productId: string, variantId: string, status: string ('in_stock', 'sold'), entryDate: timestamp, entryPrice: number
+	Mỗi document là một IMEI/Sê-ri cụ thể, quản lý tồn kho chi tiết.
+	sales_orders
+	FS_AUTO_ID_ORDER
+	orderNumber: string, customerId: string, staffId: string, orderDate: timestamp, totalAmount: number, paymentMethod: string
+	Lưu thông tin đơn hàng chính.
+	sales_orders/{orderId}/order_items
+	FS_AUTO_ID_ITEM
+	inventoryItemId: string, productName: string (denormalized), variantInfo: map (denormalized), unitPrice: number
+	Chi tiết từng sản phẩm (IMEI) trong một đơn hàng.
+	users
+	FIREBASE_AUTH_UID
+	email: string, displayName: string, role: string
+	Thông tin tài khoản người dùng hệ thống (nhân viên, quản lý).
+	customers
+	FS_AUTO_ID_CUST hoặc 09xxxxxxxx
+	name: string, phone: string (indexed, unique), totalSpent: number
+	Thông tin khách hàng.
+	B. Mô hình hóa dữ liệu cho sản phẩm có nhiều biến thể và quản lý IMEI/Serial
+               * Sản phẩm và Biến thể: Việc sử dụng subcollection variants bên trong mỗi document của products cho phép mỗi model sản phẩm (ví dụ: iPhone 15 Pro Max) có nhiều phiên bản khác nhau (màu sắc, dung lượng) một cách rõ ràng. Mỗi biến thể này có thể có mã SKU, giá, và hình ảnh riêng, phù hợp với cách các nền tảng thương mại điện tử như Haravan quản lý sản phẩm 5 và cũng tương đồng với cách Google khuyến nghị sử dụng ProductGroup và Product cho dữ liệu có cấu trúc.6
+               * IMEI/Serial và Tồn kho: Collection inventory_items là trung tâm của việc quản lý tồn kho chi tiết. Mỗi document trong collection này đại diện cho một chiếc điện thoại cụ thể, được định danh bằng trường imei (và serialNumber nếu có). Document này liên kết trở lại productId (model sản phẩm) và variantId (biến thể cụ thể). Trường status (ví dụ: "in_stock", "sold") của mỗi inventory_item sẽ quyết định xem sản phẩm đó có thể bán được hay không và là cơ sở để tính toán tồn kho chính xác.
+               * Ưu điểm: Cho phép truy vấn tồn kho chính xác đến từng IMEI. Dễ dàng theo dõi lịch sử và vòng đời của từng chiếc điện thoại từ lúc nhập kho đến khi bán cho khách hàng, thậm chí cả khi khách trả lại hoặc mang đi bảo hành.
+               * Thách thức: Số lượng document trong inventory_items có thể tăng lên rất nhanh nếu cửa hàng có quy mô lớn. Do đó, việc thiết kế index và tối ưu hóa các truy vấn liên quan đến collection này là cực kỳ quan trọng để đảm bảo hiệu năng.
+               * Liên kết khi bán hàng: Khi một chiếc iPhone được bán, một document mới sẽ được tạo trong subcollection order_items của sales_orders. Document này sẽ chứa một tham chiếu (inventoryItemId) đến document tương ứng trong inventory_items (thông qua ID của inventory_item đó, hoặc trực tiếp lưu IMEI nếu IMEI là ID). Đồng thời, trường status của inventory_item đó sẽ được cập nhật thành "sold", và soldDate cũng được ghi nhận.
+               * Denormalization (Phi chuẩn hóa dữ liệu): Để tối ưu hóa tốc độ đọc và giảm số lượng truy vấn cần thiết khi hiển thị thông tin, một số dữ liệu có thể được phi chuẩn hóa (lặp lại).37 Ví dụ:
+               * Trong order_items, các thông tin như productName, variantInfo (màu, dung lượng), imei được lưu lại thay vì chỉ lưu ID và phải thực hiện nhiều lượt đọc (lookup) để lấy thông tin này mỗi khi xem chi tiết đơn hàng.
+               * Trong sales_orders, thông tin cơ bản của khách hàng như customerInfo.name, customerInfo.phone và staffName cũng có thể được lưu lại.
+               * Cân nhắc quan trọng: Phi chuẩn hóa giúp đọc nhanh hơn nhưng làm tăng độ phức tạp khi cập nhật dữ liệu (nếu tên sản phẩm thay đổi, cần cập nhật ở nhiều nơi) và tốn thêm một chút dung lượng lưu trữ. Do đó, cần có chiến lược rõ ràng cho việc cập nhật dữ liệu phi chuẩn hóa, ví dụ sử dụng Cloud Functions để tự động cập nhật khi dữ liệu gốc thay đổi.
+C. Các truy vấn (queries) quan trọng và tối ưu hóa
+Hiệu năng của hệ thống phụ thuộc nhiều vào cách dữ liệu được truy vấn. Dưới đây là một số truy vấn quan trọng và cách tối ưu chúng:
+               1. Tìm kiếm sản phẩm theo tên model hoặc SKU của biến thể:
+               * Query trên collection products theo trường name (sử dụng toán tử so sánh phù hợp cho tìm kiếm gần đúng nếu cần, hoặc tìm kiếm chính xác).
+               * Query trên subcollection variants (có thể dùng Collection Group Query nếu muốn tìm SKU trên tất cả sản phẩm) theo trường sku.
+               * Tối ưu: Đảm bảo các trường name (trong products) và sku (trong variants) được index.
+               2. Lấy danh sách IMEI/Sê-ri có sẵn ("in_stock") cho một biến thể sản phẩm cụ thể:
+               * Query trên collection inventory_items với điều kiện: variantId == AND status == "in_stock".
+               * Tối ưu: Tạo một composite index trên hai trường (variantId, status) trong collection inventory_items.
+               3. Lấy thông tin chi tiết một đơn hàng (bao gồm các sản phẩm đã bán):
+               * Đọc document tương ứng từ collection sales_orders bằng orderId.
+               * Sau đó, query tất cả các document trong subcollection order_items của document đơn hàng đó.
+               * Tối ưu: Vì order_items là subcollection, việc đọc này thường khá hiệu quả. Dữ liệu đã được phi chuẩn hóa trong order_items giúp giảm thiểu việc phải lookup thêm.
+               4. Thống kê doanh thu theo sản phẩm/biến thể trong một khoảng thời gian:
+               * Query collection sales_orders với điều kiện orderDate nằm trong khoảng thời gian mong muốn và orderStatus == "completed".
+               * Với mỗi đơn hàng tìm được, đọc các document trong subcollection order_items.
+               * Tổng hợp (aggregate) dữ liệu (ví dụ: itemTotal) dựa trên productId và variantId ở phía client hoặc sử dụng Cloud Functions cho các tác vụ tổng hợp phức tạp hơn, vì Firestore có những hạn chế nhất định về khả năng aggregation trực tiếp trên server cho các tập dữ liệu lớn và phức tạp.37
+               * Tối ưu: Index trường orderDate và orderStatus trong sales_orders. Cân nhắc việc tạo một collection riêng cho mục đích báo cáo (ví dụ: aggregated_sales_reports) được cập nhật định kỳ bởi Cloud Functions nếu các truy vấn tổng hợp quá nặng nề.
+               5. Kiểm tra một IMEI/Sê-ri cụ thể:
+               * Query trên collection inventory_items với điều kiện imei == [IMEI cần kiểm tra].
+               * Tối ưu: Đảm bảo trường imei được index (và có ràng buộc unique ở tầng ứng dụng hoặc qua security rules nếu có thể).
+Các biện pháp tối ưu hóa chung cho Firestore:
+               * Sử dụng index một cách hiệu quả: Firestore tự động tạo single-field indexes. Tuy nhiên, đối với các truy vấn lọc trên nhiều trường hoặc sắp xếp kết hợp lọc, cần phải tự tạo composite indexes.36 Việc tạo quá nhiều index không cần thiết có thể làm tăng chi phí lưu trữ và làm chậm tốc độ ghi.37
+               * Giới hạn số lượng document trả về: Sử dụng limit() để chỉ lấy số lượng document cần thiết.
+               * Phân trang (Pagination): Sử dụng cursors (startAt(), startAfter(), endAt(), endBefore()) thay vì offset() để phân trang kết quả. Việc sử dụng offset() vẫn khiến Firestore đọc qua các document bị bỏ qua, ảnh hưởng đến hiệu năng và chi phí.36
+               * Thiết kế dữ liệu để hỗ trợ các truy vấn phổ biến nhất: Cấu trúc dữ liệu nên được tối ưu cho các mẫu truy cập thường xuyên.
+               * Tránh hotspotting: Không sử dụng document ID tự tăng tuần tự. ID tự động tạo của Firestore được thiết kế để phân tán các lượt ghi, giúp tránh tình trạng này.36 Cũng cần lưu ý khi ghi vào một collection với tốc độ rất cao hoặc cập nhật một document đơn lẻ quá thường xuyên.36
+               * Sử dụng Transactions cho các thao tác nguyên tử: Khi thực hiện nhiều thao tác ghi cần đảm bảo tính nhất quán (ví dụ: tạo đơn hàng và cập nhật tồn kho), phải sử dụng Firestore Transactions.35 Nếu bất kỳ thao tác nào trong transaction thất bại, tất cả các thao tác khác sẽ được rollback, đảm bảo dữ liệu không bị sai lệch.
+Việc lựa chọn giữa việc sử dụng IMEI làm Document ID cho inventory_items hay làm một trường riêng biệt là một quyết định thiết kế cần cân nhắc. Sử dụng IMEI làm ID cho phép truy vấn trực tiếp một IMEI rất nhanh (db.collection('inventory_items').doc('IMEI_VALUE').get()). Tuy nhiên, IMEI có thể chứa các ký tự không được khuyến khích cho ID, và việc thay đổi IMEI (dù rất hiếm) sẽ phức tạp. Ngược lại, nếu IMEI là một trường riêng và Document ID do Firestore tự sinh, việc truy vấn sẽ là db.collection('inventory_items').where('imei', '==', 'IMEI_VALUE').get(). Cách tiếp cận này linh hoạt hơn nếu cấu trúc IMEI có thể thay đổi hoặc có các yêu cầu khác về ID, đồng thời tuân thủ khuyến nghị không sử dụng ID có quy luật dễ đoán.36 Đề xuất hiện tại nghiêng về việc sử dụng ID tự sinh của Firestore cho inventory_items và có một trường imei được index mạnh (unique).
+VI. Kiến trúc Ứng dụng với NextJS và Firebase
+Kiến trúc ứng dụng sẽ kết hợp sức mạnh của NextJS cho phần frontend và Firebase cho backend, tạo ra một giải pháp Point of Sale (POS) hiện đại, hiệu quả và có khả năng mở rộng.
+A. Cấu trúc thư mục dự án NextJS
+Việc tổ chức cấu trúc thư mục một cách khoa học sẽ giúp dự án dễ quản lý, bảo trì và mở rộng. Đề xuất sử dụng cấu trúc dựa trên tính năng (feature-based) hoặc theo miền (domain-based), kết hợp với App Router của NextJS (phiên bản 13+).
+
+
+Plaintext
+
+
+
+
+/src
+|-- /app (App Router của NextJS)
+| |-- (auth)                   # Route group cho các trang xác thực (không có layout chung)
+| | |-- /login
+| | | |-- page.tsx
+| | |-- /forgot-password
+| | | |-- page.tsx
+| |-- (main)                   # Route group cho các trang chính sau khi đăng nhập (có layout chung)
+| | |-- /dashboard           # Trang tổng quan
+| | | |-- page.tsx
+| | |-- /pos                 # Giao diện bán hàng chính
+| | | |-- page.tsx
+| | |-- /inventory
+| | | |-- /products        # Quản lý sản phẩm, biến thể
+| | | | |-- page.tsx
+| | | | |-- /[productId]
+| | | | |-- page.tsx # Chi tiết sản phẩm, quản lý biến thể, IMEI
+| | | |-- /stock-intake    # Nhập kho
+| | | |-- page.tsx
+| | | |-- /new         # Tạo phiếu nhập mới
+| | | |-- page.tsx
+| | |-- /orders              # Quản lý đơn hàng
+| | | |-- page.tsx
+| | | |-- /[orderId]
+| | | |-- page.tsx     # Chi tiết đơn hàng
+| | |-- /reports             # Các trang báo cáo
+| | | |-- /sales
+| | | | |-- page.tsx
+| | | |-- /inventory
+| | | |-- page.tsx
+| | |-- /settings            # Cài đặt hệ thống, quản lý người dùng
+| | | |-- page.tsx
+| | |-- layout.tsx           # Layout chung cho các trang trong (main) group (ví dụ: sidebar, navbar)
+| | |-- loading.tsx          # UI loading chung
+| | |-- error.tsx            # UI lỗi chung
+| |-- /api                     # API Routes của NextJS (nếu cần)
+| | |-- /auth
+| | | |--...
+| | |-- /webhook
+| | |--...
+| |-- layout.tsx               # Layout gốc của ứng dụng
+| |-- page.tsx                 # Trang chủ (có thể là trang login hoặc dashboard tùy logic)
+| |-- globals.css
+|-- /components
+| |-- /ui                      # Các UI components chung, tái sử dụng (Button, Input, Modal, Table, etc.)
+| | # (Có thể sử dụng thư viện như Shadcn/UI, Material UI, Ant Design tùy chỉnh)
+| |-- /features                # Các components cụ thể cho từng tính năng
+| | |-- /pos
+| | | |-- ProductSearch.tsx
+| | | |-- IMEISelector.tsx
+| | | |-- OrderSummary.tsx
+| | |-- /inventory
+| | |-- ProductForm.tsx
+| | |-- VariantTable.tsx
+|-- /lib
+| |-- firebase.ts              # Khởi tạo Firebase app, export các services (auth, firestore)
+| |-- hooks                    # Các custom React hooks (ví dụ: useAuth, useInventory)
+| |-- utils                    # Các hàm tiện ích chung (định dạng ngày, tính toán, etc.)
+| |-- constants.ts             # Các hằng số dùng chung
+|-- /contexts                    # React Context API cho global state (ví dụ: AuthContext, ThemeContext)
+|-- /services                    # Các module chứa logic tương tác với Firebase Firestore
+| |-- productService.ts
+| |-- orderService.ts
+| |-- inventoryService.ts
+|-- /types                       # Định nghĩa TypeScript interfaces/types cho các đối tượng dữ liệu
+|-- product.ts
+|-- order.ts
+|-- /styles                      # Các file CSS/SCSS module hoặc global khác (nếu không dùng TailwindCSS)
+next.config.js
+tsconfig.json
+
+Cấu trúc này sử dụng App Router, tận dụng Server Components, Client Components, Layouts, và các quy ước định tuyến mới của NextJS để tối ưu hóa hiệu suất và trải nghiệm phát triển.
+B. Tích hợp Firebase SDK trong NextJS
+Việc tích hợp Firebase SDK vào ứng dụng NextJS là bước quan trọng để kết nối frontend với các dịch vụ backend của Firebase.1
+               1. Khởi tạo Firebase App:
+               * Tạo một file cấu hình Firebase (ví dụ: src/lib/firebase.ts). File này sẽ chứa thông tin cấu hình dự án Firebase lấy từ Firebase Console (API key, authDomain, projectId, etc.).
+               * Khởi tạo Firebase app một lần duy nhất trong ứng dụng và export các services cần thiết như Authentication và Firestore.1
+TypeScript
+// src/lib/firebase.ts
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+
+const firebaseConfig = {
+   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app =!getApps().length? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export { app, auth, db };
+
+               2. Firebase Authentication:
+               * Sử dụng Firebase Auth SDK để quản lý toàn bộ quy trình xác thực người dùng: đăng ký (nếu cần cho quản trị viên ban đầu), đăng nhập bằng email/password, đăng xuất, và quản lý session người dùng.
+               * Các trang yêu cầu đăng nhập (ví dụ: toàn bộ route group (main)) cần được bảo vệ. Điều này có thể thực hiện bằng cách sử dụng React Context để lưu trạng thái người dùng và kiểm tra trong layout.tsx của group đó, hoặc sử dụng middleware của NextJS.
+               3. Firebase Firestore:
+               * Sử dụng Firestore SDK để thực hiện các thao tác CRUD (Create, Read, Update, Delete) trên cơ sở dữ liệu.1
+               * Logic tương tác với Firestore nên được đóng gói trong các service modules (ví dụ: src/services/productService.ts) để tái sử dụng và dễ quản lý.
+TypeScript
+// src/services/productService.ts
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { Product, ProductVariant } from '@/types/product'; // Giả sử có định nghĩa type
+
+const productsCollectionRef = collection(db, 'products');
+
+export const getAllProducts = async (): Promise<Product> => {
+   const snapshot = await getDocs(productsCollectionRef);
+   return snapshot.docs.map(doc => ({ id: doc.id,...doc.data() } as Product));
+};
+// Thêm các hàm khác như getProductById, addProduct, updateProduct, etc.
+
+               * Tận dụng khả năng đồng bộ thời gian thực của Firestore (onSnapshot) để cập nhật giao diện người dùng một cách tự động khi có sự thay đổi dữ liệu từ server (ví dụ: cập nhật số lượng tồn kho khi một sản phẩm vừa được bán ở một thiết bị khác).33 Điều này tạo ra trải nghiệm người dùng liền mạch và thông tin luôn được cập nhật, rất quan trọng trong môi trường bán lẻ năng động.
+C. Xử lý State Management phía Client
+Việc quản lý trạng thái (state) trong ứng dụng NextJS là cần thiết để đảm bảo dữ liệu được hiển thị chính xác và giao diện người dùng phản ứng linh hoạt.
+                  1. Local Component State: Sử dụng useState và useReducer của React cho các trạng thái chỉ liên quan đến một component cụ thể (ví dụ: trạng thái mở/đóng của một Modal, giá trị của một trường input trong form).
+                  2. React Context API: Phù hợp cho việc chia sẻ các trạng thái global đơn giản mà không muốn truyền props qua nhiều cấp component, ví dụ: thông tin người dùng đang đăng nhập, chủ đề giao diện (sáng/tối).
+                  3. Server State Management (React Query/TanStack Query hoặc SWR): Đây là lựa chọn mạnh mẽ để quản lý dữ liệu lấy từ server (Firestore). Các thư viện này cung cấp các tính năng như caching, tự động refetching khi focus lại cửa sổ, optimistic updates, và xử lý lỗi một cách hiệu quả. Chúng giúp giảm đáng kể lượng code boilerplate so với việc fetch dữ liệu và quản lý trạng thái loading/error thủ công.
+                  4. Client State Management (Zustand, Jotai, hoặc Redux Toolkit): Nếu ứng dụng có nhiều trạng thái client phức tạp, không liên quan trực tiếp đến server state, các thư viện này có thể được cân nhắc. Zustand và Jotai nhẹ nhàng và dễ sử dụng hơn Redux. Redux Toolkit nên được xem xét nếu dự án thực sự lớn và có logic state phức tạp cần một giải pháp quản lý tập trung mạnh mẽ.
+D. API Routes trong NextJS (nếu cần)
+Mặc dù client có thể tương tác trực tiếp với Firebase, API Routes của NextJS (đặt trong src/app/api/...) vẫn có vai trò quan trọng trong một số trường hợp:
+                  1. Xử lý logic nghiệp vụ phức tạp: Các tác vụ tính toán nặng, hoặc logic nghiệp vụ mà không muốn thực thi ở client (vì lý do bảo mật hoặc hiệu năng).
+                  2. Tương tác với dịch vụ bên thứ ba một cách an toàn: Nếu cần gọi API của các dịch vụ khác (ví dụ: cổng thanh toán, dịch vụ kiểm tra bảo hành của Apple nếu họ có API công khai) mà yêu cầu API key bí mật, API Routes sẽ là nơi thực hiện các cuộc gọi này để bảo vệ key.
+                  3. Thực hiện thao tác với quyền Admin (Firebase Admin SDK): Một số thao tác trên Firestore hoặc Firebase Auth có thể yêu cầu quyền admin (ví dụ: tạo người dùng mới với vai trò cụ thể, bỏ qua security rules trong một số trường hợp đặc biệt). Firebase Admin SDK có thể được khởi tạo và sử dụng trong các API Routes này.
+                  4. Tổng hợp dữ liệu cho báo cáo phức tạp: Nếu việc tổng hợp dữ liệu trực tiếp từ client quá chậm hoặc phức tạp, API Routes có thể thực hiện việc này ở server và trả về kết quả đã xử lý.
+Frontend sẽ gọi các API Routes này thông qua fetch API hoặc các thư viện HTTP client như Axios. Việc quyết định khi nào sử dụng API Routes làm trung gian và khi nào cho client tương tác trực tiếp với Firestore (được bảo vệ bởi Security Rules) là một quyết định kiến trúc quan trọng. Thông thường, nên ưu tiên tương tác trực tiếp với Firestore cho các thao tác CRUD đơn giản và cần real-time, đồng thời sử dụng API Routes cho các tác vụ nhạy cảm, phức tạp hoặc cần quyền admin.
+E. Bảo mật
+Bảo mật là yếu tố không thể bỏ qua, đặc biệt khi xử lý dữ liệu bán hàng và thông tin khách hàng.
+                  1. Firebase Security Rules: Đây là tuyến phòng thủ quan trọng nhất cho dữ liệu Firestore. Cần viết các quy tắc bảo mật chi tiết để:
+                  * Đảm bảo chỉ người dùng đã xác thực mới có thể đọc/ghi dữ liệu.
+                  * Phân quyền truy cập dựa trên vai trò người dùng (ví dụ: sales_staff chỉ có thể tạo đơn hàng, store_manager có thể xem báo cáo và quản lý sản phẩm).
+                  * Kiểm tra tính hợp lệ của dữ liệu trước khi ghi (ví dụ: giá sản phẩm không được âm, trạng thái đơn hàng phải thuộc danh sách cho phép).
+                  2. Input Validation:
+                  * Client-side: Thực hiện kiểm tra dữ liệu đầu vào trên các form để cung cấp phản hồi nhanh cho người dùng và cải thiện UX.
+                  * Server-side (trong API Routes hoặc Cloud Functions): Luôn thực hiện kiểm tra lại dữ liệu đầu vào ở phía server, không tin tưởng hoàn toàn vào dữ liệu từ client, để chống lại các tấn công XSS, injection, etc.
+                  3. Environment Variables: Lưu trữ tất cả các thông tin nhạy cảm như Firebase API keys, cấu hình dự án, API keys của dịch vụ bên thứ ba trong các biến môi trường (sử dụng file .env.local cho môi trường phát triển và cấu hình biến môi trường trên nền tảng triển khai như Vercel).1
+                  4. HTTPS: Mặc định khi triển khai ứng dụng NextJS trên các nền tảng hiện đại như Vercel hoặc Firebase Hosting, đảm bảo dữ liệu được mã hóa khi truyền tải.
+                  5. Bảo vệ chống lại các lỗ hổng phổ biến: Tuân thủ các best practices về bảo mật web như sử dụng HttpOnly cookies cho session (nếu có),ป้องกัน CSRF (Cross-Site Request Forgery), XSS (Cross-Site Scripting).
+Sự kết hợp giữa NextJS và Firebase, khi được thiết kế và triển khai đúng cách, sẽ tạo ra một hệ thống POS mạnh mẽ, linh hoạt và an toàn, đáp ứng tốt các yêu cầu của cửa hàng bán lẻ điện thoại iPhone. Việc sử dụng TypeScript trong toàn bộ dự án cũng sẽ góp phần tăng cường tính ổn định và dễ bảo trì của mã nguồn.
+VII. Kết luận và Đề xuất
+A. Tóm tắt các điểm chính của thiết kế
+Báo cáo này đã trình bày một giải pháp thiết kế toàn diện cho hệ thống quản lý bán hàng điện thoại iPhone tại cửa hàng, sử dụng nền tảng công nghệ NextJS cho frontend và Firebase cho backend. Các điểm chính của thiết kế bao gồm:
+                  * Quản lý sản phẩm chi tiết: Hệ thống cho phép quản lý các model iPhone, các biến thể (màu sắc, dung lượng) và đặc biệt là từng đơn vị sản phẩm thông qua mã IMEI/Sê-ri duy nhất. Cấu trúc dữ liệu trong Firestore được đề xuất để hỗ trợ việc này một cách hiệu quả.
+                  * Tối ưu hóa quy trình nghiệp vụ: Các quy trình nhập kho và bán hàng được thiết kế để đảm bảo tính chính xác của dữ liệu tồn kho và doanh thu, với việc theo dõi IMEI là trọng tâm.
+                  * Giao diện người dùng thân thiện: Thiết kế UI/UX nhấn mạnh việc tuân thủ Apple Human Interface Guidelines, tạo ra trải nghiệm trực quan, dễ sử dụng và nhất quán cho nhân viên khi thao tác trên các thiết bị iPhone/iPad. Các yếu tố như màu sắc, typography và bố cục được đề xuất dựa trên thẩm mỹ của Apple.
+                  * Phân tích chức năng và luồng nghiệp vụ rõ ràng: Các tác nhân, trường hợp sử dụng (use cases) và luồng chức năng đã được xác định và đặc tả, cung cấp một cái nhìn chi tiết về cách hệ thống hoạt động và người dùng tương tác.
+                  * Kiến trúc ứng dụng hiện đại: Sự kết hợp NextJS và Firebase mang lại một kiến trúc linh hoạt, có khả năng mở rộng, đồng bộ dữ liệu thời gian thực và trải nghiệm phát triển tốt. Các vấn đề về state management và bảo mật cũng đã được xem xét.
+                  * Hỗ trợ ra quyết định: Chức năng thống kê và báo cáo, cùng với việc theo dõi các chỉ số KPI quan trọng, sẽ cung cấp thông tin giá trị cho việc quản lý và điều hành cửa hàng.
+Việc quản lý IMEI/Sê-ri một cách chặt chẽ xuyên suốt từ khâu nhập kho đến bán hàng và quản lý bảo hành là một yếu tố then chốt, giúp giảm thiểu rủi ro thất thoát, gian lận và nâng cao chất lượng dịch vụ khách hàng.
+B. Các bước triển khai tiếp theo và lưu ý
+Để hiện thực hóa hệ thống này, các bước triển khai tiếp theo được đề xuất như sau, theo phương pháp phát triển lặp (iterative development):
+                  1. Giai đoạn 1: Xây dựng Sản phẩm Khả dụng Tối thiểu (Minimum Viable Product - MVP):
+                  * Phạm vi: Tập trung vào các chức năng cốt lõi nhất để hệ thống có thể vận hành ở mức cơ bản.
+                  * Quản lý Sản phẩm: Tạo/sửa/xóa model iPhone, biến thể.
+                  * Quản lý IMEI/Sê-ri: Nhập danh sách IMEI cho từng biến thể.
+                  * Nhập kho: Tạo phiếu nhập, ghi nhận IMEI nhập kho, cập nhật tồn kho.
+                  * Bán hàng (POS): Tìm sản phẩm, chọn biến thể, chọn IMEI cụ thể từ danh sách tồn kho, tính tiền, ghi nhận thanh toán (đơn giản, ví dụ: tiền mặt), hoàn tất đơn hàng, cập nhật trạng thái IMEI và tồn kho.
+                  * Báo cáo cơ bản: Báo cáo doanh thu trong ngày, báo cáo tồn kho theo biến thể.
+                  * Xác thực người dùng: Đăng nhập, đăng xuất cho nhân viên.
+                  * Công việc:
+                  * Thiết lập môi trường phát triển NextJS và Firebase.
+                  * Thiết kế và triển khai cấu trúc cơ sở dữ liệu Firestore cho các collection chính (products, variants, inventory_items, sales_orders, users).
+                  * Xây dựng giao diện người dùng cho các luồng nghiệp vụ trên.
+                  * Viết Firebase Security Rules cơ bản để bảo vệ dữ liệu.
+                  * Mục tiêu: Có một phiên bản hoạt động được để thử nghiệm nội bộ và thu thập phản hồi sớm.
+                  2. Giai đoạn 2: Hoàn thiện và Mở rộng Chức năng:
+                  * Dựa trên phản hồi từ MVP, tiến hành cải tiến và bổ sung các tính năng:
+                  * Quản lý Khách hàng (chi tiết hơn).
+                  * Xử lý Trả hàng.
+                  * Quản lý Bảo hành (tra cứu thông tin).
+                  * Các loại Báo cáo Thống kê đa dạng và chi tiết hơn (doanh thu theo nhân viên, lợi nhuận, vòng quay tồn kho, các KPI đã xác định).
+                  * Quản lý Người dùng và Phân quyền chi tiết theo vai trò.
+                  * Cấu hình Khuyến mãi (nếu cần).
+                  * Tối ưu hóa giao diện và trải nghiệm người dùng.
+                  3. Giai đoạn 3: Tối ưu hóa và Bảo trì:
+                  * Tối ưu hóa hiệu suất truy vấn Firestore, tốc độ tải trang của NextJS.
+                  * Rà soát và tăng cường bảo mật (Security Rules, input validation).
+                  * Viết tài liệu hướng dẫn sử dụng.
+                  * Đào tạo nhân viên sử dụng hệ thống.
+                  * Triển khai chính thức và theo dõi, thu thập phản hồi liên tục để cải tiến.
+Lưu ý quan trọng trong quá trình triển khai:
+                  * Bảo mật Firebase Security Rules: Đây là yếu tố cực kỳ quan trọng. Cần phải viết các quy tắc một cách cẩn thận, chi tiết và kiểm thử kỹ lưỡng ngay từ những giai đoạn đầu để đảm bảo dữ liệu được bảo vệ an toàn, tránh truy cập trái phép.
+                  * Quản lý IMEI/Sê-ri: Quy trình nhập liệu và chọn IMEI/Sê-ri trong quá trình bán hàng phải được thiết kế để giảm thiểu tối đa sai sót của con người. Ưu tiên sử dụng tính năng quét mã vạch nếu có thể. Giao diện cần có các cơ chế kiểm tra (validation) và cảnh báo phù hợp.
+                  * Đào tạo người dùng: Dù hệ thống có thiết kế tốt đến đâu, nhân viên vẫn cần được đào tạo kỹ lưỡng về cách sử dụng các chức năng, đặc biệt là các quy trình liên quan đến IMEI và quản lý tồn kho.
+                  * Kiểm thử (Testing): Thực hiện kiểm thử một cách toàn diện ở các cấp độ: kiểm thử đơn vị (unit testing) cho các hàm logic, kiểm thử tích hợp (integration testing) giữa frontend và backend, và kiểm thử chấp nhận người dùng (User Acceptance Testing - UAT) với sự tham gia của nhân viên cửa hàng. Đặc biệt chú trọng kiểm thử các luồng nghiệp vụ phức tạp liên quan đến tính toán tồn kho, doanh thu, và xử lý giao dịch.
+                  * Sao lưu dữ liệu (Data Backup): Mặc dù Firebase là một dịch vụ đám mây có độ tin cậy cao và cơ chế sao lưu riêng, cửa hàng vẫn nên xem xét và có kế hoạch sao lưu dữ liệu quan trọng (ví dụ: đơn hàng, thông tin sản phẩm) định kỳ theo chính sách riêng, đặc biệt nếu có các yêu cầu tuân thủ cụ thể.
+                  * Yếu tố con người trong quản lý IMEI: Cần nhận thức rằng sai sót khi nhập liệu hoặc quét IMEI vẫn có thể xảy ra. Ngoài các biện pháp kỹ thuật, quy trình nghiệp vụ tại cửa hàng cũng cần được chuẩn hóa để giảm thiểu lỗi.
+C. Tiềm năng phát triển trong tương lai
+Sau khi hệ thống POS tại cửa hàng đã hoạt động ổn định và hiệu quả, có nhiều hướng để phát triển và mở rộng trong tương lai:
+                  1. Tích hợp Bán hàng Đa kênh:
+                  * Kết nối với website thương mại điện tử của cửa hàng.
+                  * Đồng bộ sản phẩm, tồn kho, đơn hàng giữa kênh offline và online.
+                  * Tích hợp với các sàn thương mại điện tử (nếu có).
+                  2. Ứng dụng Di động cho Khách hàng:
+                  * Cho phép khách hàng xem sản phẩm, đặt hàng trước, theo dõi tình trạng đơn hàng, kiểm tra lịch sử mua hàng, và nhận thông báo khuyến mãi.
+                  3. Chương trình Khách hàng Thân thiết (Loyalty Program):
+                  * Tích điểm, phân hạng thành viên, ưu đãi đặc biệt cho khách hàng trung thành.
+                  4. Phân tích Dữ liệu Nâng cao và Trí tuệ Kinh doanh (Business Intelligence):
+                  * Sử dụng dữ liệu bán hàng, tồn kho, khách hàng đã thu thập được để thực hiện các phân tích sâu hơn.
+                  * Dự đoán xu hướng mua sắm, tối ưu hóa việc nhập hàng, cá nhân hóa các chương trình marketing.
+                  5. Tích hợp với các Nhà cung cấp Dịch vụ Vận chuyển:
+                  * Nếu mở rộng bán hàng online, việc tích hợp với các đơn vị vận chuyển sẽ giúp tự động hóa quy trình giao nhận.
+                  6. Quản lý Sửa chữa và Dịch vụ Kỹ thuật:
+                  * Mở rộng module quản lý bảo hành để theo dõi chi tiết quá trình sửa chữa, linh kiện thay thế, chi phí dịch vụ.
+Dữ liệu bán hàng và tồn kho được tích lũy theo thời gian sẽ trở thành một tài sản vô giá. Do đó, ngay từ giai đoạn thiết kế ban đầu, cần có tầm nhìn về việc dữ liệu này sẽ được khai thác như thế nào cho các mục tiêu phân tích và phát triển dài hạn, đảm bảo cấu trúc dữ liệu có thể hỗ trợ các nhu cầu đó trong tương lai.
+Bằng việc áp dụng một cách tiếp cận bài bản trong phân tích, thiết kế và triển khai, cùng với việc lựa chọn công nghệ phù hợp, hệ thống quản lý bán hàng iPhone này hứa hẹn sẽ mang lại những cải tiến đáng kể cho hiệu quả hoạt động và khả năng cạnh tranh của cửa hàng.
+Works cited
+                  1. Xây dựng ứng dụng full-stack với next.js và firebase: Hướng dẫn ..., accessed on May 23, 2025, https://viblo.asia/p/xay-dung-ung-dung-full-stack-voi-nextjs-va-firebase-huong-dan-tung-buoc-MkNLr5REJgA
+                  2. Leveraging React with Firebase for Dynamic Web Applications - eSparkBiz, accessed on May 23, 2025, https://www.esparkinfo.com/software-development/technologies/reactjs/react-with-firebase
+                  3. Bảng màu iPhone 13 Pro Max hot nhất! Nên mua màu nào?, accessed on May 23, 2025, https://didongmoi.com.vn/bang-mau-iphone-13-pro-max-hot-nhat-2023-nen-mua-mau-nao
+                  4. iPhone 12 Pro Max có mấy màu? Màu nào đẹp đáng mua nhất - CellphoneS, accessed on May 23, 2025, https://cellphones.com.vn/sforum/iphone-12-pro-max-co-may-mau
+                  5. Thuộc tính và biến thể của sản phẩm : Haravan.com, accessed on May 23, 2025, https://support.haravan.com/support/solutions/articles/42000066965-thu%E1%BB%99c-t%C3%ADnh-v%C3%A0-bi%E1%BA%BFn-th%E1%BB%83-c%E1%BB%A7a-s%E1%BA%A3n-ph%E1%BA%A9m
+                  6. Dữ liệu có cấu trúc loại Biến thể sản phẩm (ProductGroup, Product ..., accessed on May 23, 2025, https://developers.google.com/search/docs/appearance/structured-data/product-variants?hl=vi
+                  7. Cách kiểm tra, check IMEI Samsung chính hãng đơn giản, chuẩn xác nhất, accessed on May 23, 2025, https://hoanghamobile.com/tin-tuc/check-imei-samsung/
+                  8. Web check IMEI iPhone và các sản phẩm Apple chính hãng - CellphoneS, accessed on May 23, 2025, https://cellphones.com.vn/sforum/nhung-trang-web-check-imei-iphone-va-thao-tac-kiem-tra-qua-imei
+                  9. Quản lý sản phẩm serial/imei - Support Sapo, accessed on May 23, 2025, https://support.sapo.vn/quan-ly-san-pham-serial-imei
+                  10. Top 10 phần mềm bán hàng trên điện thoại - Máy tính bảng (2022), accessed on May 23, 2025, https://posapp.vn/phan-mem-ban-hang-tren-dien-thoai-tablet
+                  11. Hệ điều hành iOS là gì? Những tính năng vượt trội của iOS mà bạn không nên bỏ qua, accessed on May 23, 2025, https://www.viettablet.com/he-dieu-hanh-ios-la-gi
+                  12. TOP 7 app quản lý bán hàng trên điện thoại miễn phí, tốt nhất - Thegioididong.com, accessed on May 23, 2025, https://www.thegioididong.com/game-app/top-7-app-quan-ly-ban-hang-tren-dien-thoai-mien-phi-tot-nhat-1372750
+                  13. Top 5 ứng dụng quản lý bán hàng điện thoại tốt nhất dành cho doanh nghiệp - Tripi.vn, accessed on May 23, 2025, https://tripi.vn/blog/vi/kinh-nghiem-hay/top-5-ung-dung-quan-ly-ban-hang-dien-thoai-tot-nhat-danh-cho-doanh-nghiep-tripi
+                  14. Gợi ý 7 chỉ số KPI cho nhân viên bán hàng - MobiWork DMS, accessed on May 23, 2025, https://mobiwork.vn/7-chi-so-kpi-cho-nhan-vien-ban-hang/
+                  15. 10 chỉ số KPIs bán lẻ mà chủ shop cần đặc biệt lưu tâm - Nhanh.vn, accessed on May 23, 2025, https://nhanh.vn/10-chi-so-kpis-ban-le-ma-chu-shop-can-dac-biet-luu-tam-n40520.html
+                  16. 7 mẫu báo cáo không thể thiếu trong chuỗi cửa hàng bán lẻ - Nhanh.vn, accessed on May 23, 2025, https://nhanh.vn/7-mau-bao-cao-khong-the-thieu-trong-chuoi-cua-hang-ban-le-n69604.html
+                  17. Các chỉ số KPI theo dõi hiệu quả kinh doanh cho cửa hàng bán lẻ - GoSELL, accessed on May 23, 2025, https://www.gosell.vn/blog/cac-chi-so-kpi-theo-doi-hieu-qua-kinh-doanh/
+                  18. 6 LOẠI BÁO CÁO TRONG BÁO CÁO QUẢN TRỊ NGÀNH BÁN LẺ - taca consulting, accessed on May 23, 2025, https://taca.com.vn/bao-cao-quan-tri-nganh-ban-le/
+                  19. Cách check bảo hành Apple CHÍNH XÁC nhất - 24hStore.vn, accessed on May 23, 2025, https://24hstore.vn/huong-dan-ky-thuat/check-bao-hanh-apple-n7657
+                  20. 10 Triết lý kinh doanh của Steve Jobs » HODL.VN, accessed on May 23, 2025, https://hodl.vn/10-triet-ly-kinh-doanh-cua-steve-jobs/
+                  21. Human Interface Guidelines (HIG) - Uxcel, accessed on May 23, 2025, https://app.uxcel.com/glossary/human-interface-guidelines
+                  22. UI Design Dos and Don'ts - Apple Developer, accessed on May 23, 2025, https://developer.apple.com/design/tips/
+                  23. 10 Xu hướng thiết kế UI/UX website thương mại điện tử 2023 ..., accessed on May 23, 2025, https://advertisingvietnam.com/10-xu-huong-thiet-ke-uiux-website-thuong-mai-dien-tu-2023-p22272
+                  24. Nâng Cao Trải Nghiệm Khách Hàng Với Thiết Kế UI/UX - Savvycom, accessed on May 23, 2025, https://savvycom.vn/blog/thiet-ke-ui-ux/
+                  25. Apple Colors - Hex, RGB, CMYK and UIs - Mobbin, accessed on May 23, 2025, https://mobbin.com/colors/brand/apple
+                  26. Color | Apple Developer Documentation, accessed on May 23, 2025, https://developer.apple.com/design/human-interface-guidelines/color
+                  27. Use Case là gì? Quy trình vẽ sơ đồ Use Case hoàn chỉnh - ITNavi, accessed on May 23, 2025, https://itnavi.com.vn/blog/use-case-la-gi
+                  28. Sơ đồ Use Case quản lý bán hàng: Vẽ biểu đồ/mô hình & Đặc tả, accessed on May 23, 2025, https://www.upbase.vn/blog/so-do-use-case-quan-ly-ban-hang
+                  29. Viết đặc tả Use Case sao đơn giản nhưng hiệu quả? - Thinhnotes, accessed on May 23, 2025, https://thinhnotes.com/chuyen-nghe-ba/viet-dac-ta-use-case-sao-don-gian-nhung-hieu-qua/
+                  30. Sơ đồ DFD quản lý bán hàng: 4 mức phân cấp & Cách xây dựng, accessed on May 23, 2025, https://upbase.vn/so-do-dfd-quan-ly-ban-hang/
+                  31. Free User Flow Diagram Tool - Venngage, accessed on May 23, 2025, https://venngage.com/features/user-flow-diagram
+                  32. The best user flow tools for UX design: free and paid - Justinmind, accessed on May 23, 2025, https://www.justinmind.com/blog/user-flow-tools/
+                  33. Firestore | Firebase - Google, accessed on May 23, 2025, https://firebase.google.com/docs/firestore?hl=vi
+                  34. Cloud Firestore Data model - Firebase, accessed on May 23, 2025, https://firebase.google.com/docs/firestore/data-model
+                  35. Firestore | Firebase - Google, accessed on May 23, 2025, https://firebase.google.com/docs/firestore
+                  36. Best practices for Cloud Firestore - Firebase, accessed on May 23, 2025, https://firebase.google.com/docs/firestore/best-practices
+                  37. 7+ Google Firestore Query Performance Best Practices for 2024 - Estuary, accessed on May 23, 2025, https://estuary.dev/blog/firestore-query-best-practices/

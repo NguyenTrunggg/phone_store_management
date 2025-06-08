@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+    
+    function isStoreManager() {
+      return isAuthenticated() && getUserRole() == 'store_manager';
+    }
+    
+    function isSalesStaff() {
+      return isAuthenticated() && getUserRole() == 'sales_staff';
+    }
+    
+    function isWarehouseStaff() {
+      return isAuthenticated() && getUserRole() == 'warehouse_staff';
+    }
+    
+    function canManageProducts() {
+      return isAdmin() || isStoreManager();
+    }
+    
+    function canManageInventory() {
+      return isAdmin() || isStoreManager() || isWarehouseStaff();
+    }
+    
+    function canProcessSales() {
+      return isAdmin() || isStoreManager() || isSalesStaff();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || isStoreManager();
+    }
+
+    // Product variants collection
+    match /productVariants/{variantId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canManageProducts();
+    }
+
+    // Products collection (IMEI level)
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canManageInventory();
+      allow delete: if isAdmin();
+    }
+
+    // Sales collection
+    match /sales/{saleId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canProcessSales();
+      allow delete: if isAdmin();
+    }
+
+    // Returns collection
+    match /returns/{returnId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canProcessSales();
+      allow delete: if isAdmin();
+    }
+
+    // Purchase orders collection
+    match /purchaseOrders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canManageInventory();
+      allow delete: if isAdmin();
+    }
+
+    // Suppliers collection
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canManageProducts();
+    }
+
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canProcessSales();
+      allow delete: if isAdmin();
+    }
+
+    // Stock movements collection
+    match /stockMovements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if canManageInventory() || canProcessSales();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
