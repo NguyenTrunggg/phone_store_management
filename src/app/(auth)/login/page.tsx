@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,10 +29,7 @@ interface FormErrors {
   general?: string;
 }
 
-export default function LoginPage() {
-  // Client-side mounting guard
-  const [isMounted, setIsMounted] = useState(false);
-
+function LoginForm() {
   // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,28 +38,21 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auth and routing - only access after mounting
+  // Auth and routing
   const { login, user, initializing } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Handle client-side mounting
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Get return URL only on client side
   const getReturnUrl = () => {
-    if (!isMounted) return "/dashboard";
     return searchParams.get("returnUrl") || "/dashboard";
   };
 
-  // Redirect if already authenticated - only after mounting
+  // Redirect if already authenticated
   useEffect(() => {
-    if (isMounted && !initializing && user) {
+    if (!initializing && user) {
       router.replace(getReturnUrl());
     }
-  }, [user, initializing, router, isMounted]);
+  }, [user, initializing, router]);
 
   // Form validation
   const validateForm = (): boolean => {
@@ -89,44 +79,38 @@ export default function LoginPage() {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Clear previous errors
     setErrors({});
-
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-
     try {
       await login({ email: email.trim(), password });
-
-      // Successful login - redirect will happen via useEffect
-      console.log("Login successful, redirecting...");
+      // Redirect handled by useEffect
     } catch (error: any) {
-      console.error("Login error:", error);
-
-      // Set appropriate error message
       let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";
-
-      if (error.message.includes("user-not-found")) {
-        errorMessage = "Không tìm thấy tài khoản với email này.";
-      } else if (error.message.includes("wrong-password")) {
-        errorMessage = "Mật khẩu không chính xác.";
-      } else if (error.message.includes("too-many-requests")) {
-        errorMessage = "Quá nhiều lần thử. Vui lòng đợi một lúc.";
-      } else if (error.message.includes("network-request-failed")) {
-        errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra internet.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/invalid-credential':
+            errorMessage = "Email hoặc mật khẩu không chính xác.";
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = "Quá nhiều lần thử. Vui lòng đợi một lúc.";
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra internet.";
+            break;
+          default:
+            errorMessage = error.message;
+        }
       }
-
       setErrors({ general: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Handle input changes and clear errors
+  
+    // Handle input changes and clear errors
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     if (errors.email) {
@@ -141,32 +125,152 @@ export default function LoginPage() {
     }
   };
 
-  // Show loading while not mounted or initializing
-  if (!isMounted || initializing) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 flex items-center justify-center">
-        <div className="flex items-center space-x-3">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-gray-600 dark:text-gray-300">Đang tải...</span>
+
+  if (initializing || user) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="mt-4 text-gray-600 dark:text-gray-300">Đang tải hoặc chuyển hướng...</p>
         </div>
-      </div>
-    );
+      );
   }
 
-  // Don't render if user is already authenticated
-  if (user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 flex items-center justify-center">
-        <div className="flex items-center space-x-3">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-gray-600 dark:text-gray-300">
-            Đang chuyển hướng...
-          </span>
-        </div>
-      </div>
-    );
-  }
 
+  return (
+    <Card className="w-full border-none bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg shadow-2xl shadow-blue-500/10 dark:shadow-blue-900/20">
+      <CardContent className="p-8 sm:p-10 lg:p-12">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Đăng nhập
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            Chào mừng trở lại!
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="space-y-6">
+            {/* General Error Alert */}
+            {errors.general && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errors.general}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="email"
+                className="font-semibold text-gray-700 dark:text-gray-200"
+              >
+                Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={email}
+                  onChange={handleEmailChange}
+                  required
+                  className={clsx(
+                    "pl-10 h-12",
+                    errors.email && "border-red-500 focus-visible:ring-red-500"
+                  )}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-sm text-red-600">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="password"
+                className="font-semibold text-gray-700 dark:text-gray-200"
+              >
+                Mật khẩu
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  required
+                  className={clsx(
+                    "pl-10 h-12",
+                    errors.password &&
+                      "border-red-500 focus-visible:ring-red-500"
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-600">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) =>
+                    setRememberMe(checked as boolean)
+                  }
+                />
+                <label
+                  htmlFor="remember"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Ghi nhớ đăng nhập
+                </label>
+              </div>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                Quên mật khẩu?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full h-12 text-base font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-900/40 transition-all duration-300 ease-in-out transform hover:scale-105"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : null}
+              {isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 relative overflow-hidden">
       {/* Background Elements */}
@@ -240,184 +344,16 @@ export default function LoginPage() {
         {/* Right Side - Login Form */}
         <div className="w-full lg:w-3/5 flex items-center justify-center p-6 lg:p-8">
           <div className="w-full max-w-lg lg:max-w-md xl:max-w-lg">
-            {/* Mobile Logo */}
-            <div className="lg:hidden text-center mb-10">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6 shadow-lg">
-                <Smartphone className="w-8 h-8 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                Phone Store Pro
-              </h1>
-            </div>
-
-            {/* Welcome Text */}
-            <div className="text-center lg:text-left mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Chào mừng trở lại
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300">
-                Đăng nhập để tiếp tục quản lý cửa hàng của bạn
-              </p>
-            </div>
-
-            {/* Login Form Card */}
-            <Card className="backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 border-white/20 dark:border-gray-700/30 shadow-2xl shadow-blue-500/10">
-              <CardContent className="p-8">
-                {/* General Error Alert */}
-                {errors.general && (
-                  <Alert className="mb-6 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
-                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-700 dark:text-red-300">
-                      {errors.general}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Email Field */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="email"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      Email
-                    </Label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={handleEmailChange}
-                        className={clsx(
-                          "pl-12 h-12 rounded-xl border-2 transition-all duration-200 bg-gray-50/80 dark:bg-gray-700/50 backdrop-blur-sm",
-                          "focus:border-blue-500 focus:ring-0 focus:outline-none focus:bg-white dark:focus:bg-gray-700 focus:shadow-lg focus:shadow-blue-500/20",
-                          "placeholder:text-gray-400 text-gray-900 dark:text-white",
-                          errors.email
-                            ? "border-red-500 bg-red-50/80 dark:bg-red-900/20"
-                            : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-                        )}
-                        placeholder="your@email.com"
-                        autoComplete="email"
-                        disabled={isSubmitting}
-                        required
-                        suppressHydrationWarning
-                      />
-                    </div>
-                    {errors.email && (
-                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center mt-2">
-                        <span className="w-1 h-1 bg-red-500 rounded-full mr-2"></span>
-                        {errors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password Field */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="password"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      Mật khẩu
-                    </Label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={handlePasswordChange}
-                        className={clsx(
-                          "pl-12 pr-12 h-12 rounded-xl border-2 transition-all duration-200 bg-gray-50/80 dark:bg-gray-700/50 backdrop-blur-sm",
-                          "focus:border-blue-500 focus:ring-0 focus:outline-none focus:bg-white dark:focus:bg-gray-700 focus:shadow-lg focus:shadow-blue-500/20",
-                          "placeholder:text-gray-400 text-gray-900 dark:text-white",
-                          errors.password
-                            ? "border-red-500 bg-red-50/80 dark:bg-red-900/20"
-                            : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-                        )}
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                        disabled={isSubmitting}
-                        required
-                        suppressHydrationWarning
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
-                        disabled={isSubmitting}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-5 h-5" />
-                        ) : (
-                          <Eye className="w-5 h-5" />
-                        )}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center mt-2">
-                        <span className="w-1 h-1 bg-red-500 rounded-full mr-2"></span>
-                        {errors.password}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Remember Me & Forgot Password */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="rememberMe"
-                        checked={rememberMe}
-                        onCheckedChange={(checked) =>
-                          setRememberMe(checked === true)
-                        }
-                        disabled={isSubmitting}
-                      />
-                      <Label
-                        htmlFor="rememberMe"
-                        className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer"
-                      >
-                        Ghi nhớ đăng nhập
-                      </Label>
-                    </div>
-                    <Link
-                      href="/auth/forgot-password"
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors font-medium"
-                      tabIndex={isSubmitting ? -1 : 0}
-                    >
-                      Quên mật khẩu?
-                    </Link>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] disabled:scale-100 disabled:opacity-70"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Đang đăng nhập...
-                      </>
-                    ) : (
-                      "Đăng nhập"
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Footer */}
-            <div className="text-center mt-8">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                © 2025 Trung Apple. Tất cả quyền được bảo lưu.
-              </p>
-            </div>
+             <Suspense fallback={
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+             }>
+                <LoginForm />
+            </Suspense>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

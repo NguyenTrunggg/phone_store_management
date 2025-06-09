@@ -148,55 +148,65 @@ class CustomerService extends BaseService {
     filters: CustomerSearchFilters
   ): Promise<ServiceResponse<PaginationResult<FirebaseCustomer>>> {
     try {
-      const constraints: QueryConstraint[] = [];
+      const { searchTerm, limit: pageLimit = 10, isActive = true } = filters;
 
-      // Text search (simple prefix match for name)
-      if (filters.searchTerm) {
-        const endTerm = filters.searchTerm + "\uf8ff";
-        constraints.push(where("name", ">=", filters.searchTerm));
-        constraints.push(where("name", "<=", endTerm));
-        // Note: For full-text search, a more advanced solution like Algolia/Typesense is needed.
-        // A simple query on phone/email would require exact matches.
-      }
-      
-      // Other filters
-      if (filters.customerTier) {
-        constraints.push(where("customerTier", "in", filters.customerTier));
-      }
-      if (typeof filters.isVip === "boolean") {
-        constraints.push(where("isVip", "==", filters.isVip));
-      }
-      if (typeof filters.isActive === "boolean") {
-        constraints.push(where("isActive", "==", filters.isActive));
+      if (!searchTerm) {
+        // Return empty if no search term is provided for this function's purpose
+        return { success: true, data: { data: [], hasMore: false } };
       }
 
-      // Sorting
-    //   const sortBy = filters.sortBy || "createdAt";
-    //   const sortOrder = filters.sortOrder || "desc";
-    //   constraints.push(orderBy(sortBy, sortOrder));
+      const endTerm = searchTerm + "\uf8ff";
 
-      // Pagination
-      const pageLimit = filters.limit || 10;
-      if (filters.startAfter) {
-        constraints.push(startAfter(filters.startAfter));
-      }
-      constraints.push(limit(pageLimit));
-
-      const q = query(this.collectionRef, ...constraints);
-      const snapshot = await getDocs(q);
-
-      const data = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as FirebaseCustomer)
+      // --- Define queries for name and phone ---
+      const nameQuery = query(
+        this.collectionRef,
+        where("isActive", "==", isActive),
+        where("name", ">=", searchTerm),
+        where("name", "<=", endTerm)
       );
-      
-      const lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
+      const phoneQuery = query(
+        this.collectionRef,
+        where("isActive", "==", isActive),
+        where("phone", ">=", searchTerm),
+        where("phone", "<=", endTerm)
+      );
+
+      // --- Execute queries in parallel ---
+      const [nameSnapshot, phoneSnapshot] = await Promise.all([
+        getDocs(nameQuery),
+        getDocs(phoneQuery),
+      ]);
+
+      // --- Merge and deduplicate results ---
+      const customersMap = new Map<string, FirebaseCustomer>();
+
+      nameSnapshot.docs.forEach(doc => {
+        if (!customersMap.has(doc.id)) {
+          customersMap.set(doc.id, { id: doc.id, ...doc.data() } as FirebaseCustomer);
+        }
+      });
+
+      phoneSnapshot.docs.forEach(doc => {
+        if (!customersMap.has(doc.id)) {
+          customersMap.set(doc.id, { id: doc.id, ...doc.data() } as FirebaseCustomer);
+        }
+      });
+      
+      // --- Sort and paginate results ---
+      const combinedData = Array.from(customersMap.values())
+        .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
+      
+      const data = combinedData.slice(0, pageLimit);
+
+      // Note: True pagination with this client-side merge is complex.
+      // This approach is suitable for small, quick search results like in a dropdown.
       return {
         success: true,
         data: {
           data,
-          lastDoc,
-          hasMore: data.length === pageLimit,
+          lastDoc: undefined, // Pagination cursor is not feasible with this merge strategy
+          hasMore: combinedData.length > pageLimit,
         },
       };
     } catch (error) {
@@ -287,6 +297,27 @@ class CustomerService extends BaseService {
     };
 
     transaction.update(customerRef, updateData);
+  }
+
+  async findCustomerByPhone(phone: string): Promise<ServiceResponse<FirebaseCustomer | null>> {
+    try {
+        const q = query(
+            this.collectionRef,
+            where("phone", "==", phone),
+            limit(1)
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            return { success: true, data: null };
+        }
+
+        const customer = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as FirebaseCustomer;
+        return { success: true, data: customer };
+
+    } catch (error) {
+        return this.handleError(error);
+    }
   }
 }
 

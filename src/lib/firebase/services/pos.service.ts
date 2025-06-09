@@ -441,8 +441,8 @@ export class PosService extends BaseService {
       const ordersRef = collection(db, COLLECTIONS.SALES_ORDERS);
       const q = query(
         ordersRef,
-        // where("customerId", "==", customerId),
-        // orderBy("orderDate", "desc")
+        where("customerId", "==", customerId),
+        orderBy("orderDate", "desc")
       );
 
       const snapshot = await getDocs(q);

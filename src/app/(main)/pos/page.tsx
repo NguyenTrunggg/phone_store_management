@@ -58,7 +58,6 @@ export default function POSInterface() {
     phone: "",
   })
   const [selectedCustomer, setSelectedCustomer] = useState<FirebaseCustomer | null>(null)
-  const [customerSearchTerm, setCustomerSearchTerm] = useState("")
   const [searchedCustomers, setSearchedCustomers] = useState<FirebaseCustomer[]>([])
   const [isCustomerSearchLoading, setIsCustomerSearchLoading] = useState(false)
   
@@ -131,46 +130,53 @@ export default function POSInterface() {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
 
-  const debouncedCustomerSearch = useMemo(() => 
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 3) {
-        setSearchedCustomers([]);
-        return;
-      }
-      setIsCustomerSearchLoading(true);
-      const res = await customerService.searchCustomers({ searchTerm, limit: 5, isActive: true });
-      if (res.success && res.data) {
-        setSearchedCustomers(res.data.data);
-      } else {
-        setSearchedCustomers([]);
-      }
-      setIsCustomerSearchLoading(false);
-    }, 300),
+  const debouncedPhoneSearch = useMemo(
+    () =>
+      debounce(async (phone: string) => {
+        if (phone.length < 3) {
+          setSearchedCustomers([]);
+          return;
+        }
+        setIsCustomerSearchLoading(true);
+        const res = await customerService.searchCustomers({ searchTerm: phone, limit: 5, isActive: true });
+        if (res.success && res.data) {
+          const directMatch = res.data.data.find(c => c.phone === phone);
+          if (directMatch) {
+            handleCustomerSelect(directMatch);
+            setSearchedCustomers([]);
+          } else {
+            setSearchedCustomers(res.data.data);
+          }
+        } else {
+          setSearchedCustomers([]);
+        }
+        setIsCustomerSearchLoading(false);
+      }, 300),
     []
   );
 
   useEffect(() => {
-    debouncedCustomerSearch(customerSearchTerm);
-  }, [customerSearchTerm, debouncedCustomerSearch]);
+    if (customerInfo.phone && !selectedCustomer) {
+      debouncedPhoneSearch(customerInfo.phone);
+    } else {
+      setSearchedCustomers([]);
+    }
+  }, [customerInfo.phone, selectedCustomer, debouncedPhoneSearch]);
 
   const handleCustomerSelect = (customer: FirebaseCustomer) => {
     setSelectedCustomer(customer);
-    setCustomerInfo({ name: customer.name, phone: customer.phone });
-    setCustomerSearchTerm(customer.phone || "");
+    setCustomerInfo({ name: customer.name, phone: customer.phone ?? "" });
     setSearchedCustomers([]);
     toast.info(`Đã chọn khách hàng: ${customer.name}`);
   }
 
   const handleCustomerInfoChange = (field: keyof FirebasePosCustomerInfo, value: string) => {
     if (selectedCustomer) {
-        setSelectedCustomer(null); 
-        toast.warning("Thông tin khách hàng đã được thay đổi. Một khách hàng mới sẽ được tạo nếu cần thiết.");
-    }
-    const newCustomerInfo = { ...customerInfo, [field]: value };
-    setCustomerInfo(newCustomerInfo);
-
-    if (field === 'phone') {
-        setCustomerSearchTerm(value);
+      setSelectedCustomer(null); 
+      setCustomerInfo({ name: selectedCustomer.name, phone: value });
+    } else {
+      const newCustomerInfo = { ...customerInfo, [field]: value };
+      setCustomerInfo(newCustomerInfo);
     }
   }
 
@@ -235,9 +241,6 @@ export default function POSInterface() {
         setCart([]);
         setCustomerInfo({ name: "", phone: "" });
         setSelectedCustomer(null);
-        setCustomerSearchTerm("");
-        setCustomerNameError("");
-        setCustomerPhoneError("");
         setAmountReceived("");
         setIsCheckoutDialogOpen(false);
         
@@ -407,9 +410,10 @@ export default function POSInterface() {
                 <Input
                   id="customer-phone"
                   placeholder="Nhập SĐT để tìm..."
-                  value={customerSearchTerm}
+                  value={customerInfo.phone}
                   onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
                   className={customerPhoneError ? "border-red-500" : ""}
+                  autoComplete="off"
                 />
                 {isCustomerSearchLoading && <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin" />}
                 {searchedCustomers.length > 0 && (

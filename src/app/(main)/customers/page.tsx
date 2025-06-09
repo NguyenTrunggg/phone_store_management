@@ -46,11 +46,7 @@ export default function CustomerManagement() {
     name: "",
     phone: "",
     email: "",
-    address: {
-        street: "",
-        city: "TP.HCM",
-        type: "home"
-    },
+  
     notes: "",
   })
   const [editCustomer, setEditCustomer] = useState<UpdateCustomerInput>({})
@@ -106,7 +102,7 @@ export default function CustomerManagement() {
         toast.success(`Đã thêm khách hàng ${res.data.name} thành công!`);
         setCustomers(prev => [res.data!, ...prev]);
         setIsCreateDialogOpen(false);
-        setNewCustomer({ name: "", phone: "", email: "", address: { street: "", city: "TP.HCM", type: "home"}, notes: "" });
+        setNewCustomer({ name: "", phone: "", email: "", notes: "" });
     } else {
         toast.error("Thêm khách hàng thất bại", { description: res.error });
     }
@@ -315,10 +311,10 @@ export default function CustomerManagement() {
                           {customer.email}
                         </span>}
                       </div>
-                      {customer.addresses && customer.addresses.length > 0 && <div className="flex items-center text-sm text-gray-500 mt-1">
+                      {/* {customer.addresses && customer.addresses.length > 0 && <div className="flex items-center text-sm text-gray-500 mt-1">
                         <MapPin className="w-3 h-3 mr-1" />
                         {customer.addresses[0].street}, {customer.addresses[0].district}, {customer.addresses[0].city}
-                      </div>}
+                      </div>} */}
                     </div>
                   </div>
                   <div className="text-right">{getStatusBadge(customer.customerTier)}</div>
