@@ -3,11 +3,11 @@
   "/(auth)/login/page": "app/(auth)/login/page.js",
   "/(main)/customers/page": "app/(main)/customers/page.js",
   "/(main)/pos/receipt/[orderId]/page": "app/(main)/pos/receipt/[orderId]/page.js",
-  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
-  "/(main)/reports/page": "app/(main)/reports/page.js",
   "/(main)/inventory/page": "app/(main)/inventory/page.js",
   "/(main)/pos/page": "app/(main)/pos/page.js",
   "/(main)/returns/page": "app/(main)/returns/page.js",
+  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
   "/(main)/users/page": "app/(main)/users/page.js",
+  "/(main)/reports/page": "app/(main)/reports/page.js",
   "/(main)/products/page": "app/(main)/products/page.js"
 }
